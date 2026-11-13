@@ -9,7 +9,9 @@ using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.NetworkInformation;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 
@@ -43,6 +45,12 @@ namespace PingSight
         }
     }
 
+    public sealed class Spec
+    {
+        public string Name, Host, Kind = "", Url = "", Label = "";
+        public int Port;
+    }
+
     internal sealed class ProbeJob
     {
         public Target Target; public IPAddress Address; public int Ttl; public long T; public int Epoch;
@@ -51,7 +59,18 @@ namespace PingSight
     public sealed class Target
     {
         public int Id;
+        public string Name;              // unique key and display name: host, host:port or URL
         public string Host;
+        public string Kind = "";         // "" = ping only, "tcp" = port check, "http" = web check
+        public int Port;
+        public string Url = "";
+        public Hop Service;              // results of the TCP / HTTP check (null for ping-only targets)
+        public string ServiceLabel = "";
+        public string ServiceInfo = "";
+        public int CertDays = int.MinValue;
+        public NetEvent OpenOutage, OpenLoss, OpenLatency;
+        public long LastOutageEnd;
+        long lastService;
         public IPAddress Address;
         public string Error = "";
         public volatile int IntervalMs;
@@ -73,6 +92,15 @@ namespace PingSight
             th.Start();
         }
 
+        // The series that says whether the target is healthy: the service check when
+        // there is one, otherwise the destination hop. Caller holds Lock.
+        public Hop HealthHop()
+        {
+            if (Service != null) return Service;
+            if (DestTtl > 0 && DestTtl <= Hops.Count) return Hops[DestTtl - 1];
+            return null;
+        }
+
         // Caller holds Lock.
         public int VisibleHops()
         {
@@ -86,6 +114,8 @@ namespace PingSight
             {
                 Epoch++; Round = 0; DestTtl = 0; Highest = 0;
                 foreach (Hop h in Hops) h.Clear();
+                if (Service != null) Service.Clear();
+                ServiceInfo = ""; LastOutageEnd = 0;
             }
         }
 
@@ -137,6 +167,94 @@ namespace PingSight
                 ProbeJob j = new ProbeJob();
                 j.Target = this; j.Address = addr; j.Ttl = ttl; j.T = t; j.Epoch = epoch;
                 ThreadPool.QueueUserWorkItem(Probe, j);
+            }
+            if (Service != null)
+            {
+                // A web request per second would be rude to the server: at most one every 5 s.
+                int gap = Kind == "http" ? Math.Max(IntervalMs, 5000) : IntervalMs;
+                if (t - lastService >= gap - 50)
+                {
+                    lastService = t;
+                    ProbeJob s = new ProbeJob();
+                    s.Target = this; s.Address = addr; s.T = t; s.Epoch = epoch;
+                    ThreadPool.QueueUserWorkItem(ProbeService, s);
+                }
+            }
+        }
+
+        static float Elapsed(long since)
+        {
+            return (float)((Stopwatch.GetTimestamp() - since) * 1000.0 / Stopwatch.Frequency);
+        }
+
+        static void ProbeService(object state)
+        {
+            ProbeJob j = (ProbeJob)state;
+            Target t = j.Target;
+            float rtt = -1f; string info = ""; int certDays = int.MinValue;
+            long s = Stopwatch.GetTimestamp();
+            if (t.Kind == "tcp")
+            {
+                try
+                {
+                    using (TcpClient c = new TcpClient(j.Address.AddressFamily))
+                    {
+                        IAsyncResult ar = c.BeginConnect(j.Address, t.Port, null, null);
+                        if (ar.AsyncWaitHandle.WaitOne(Engine.TimeoutMs))
+                        {
+                            c.EndConnect(ar);
+                            rtt = Elapsed(s); info = "port open";
+                        }
+                        else info = "no answer";
+                    }
+                }
+                catch (SocketException ex)
+                {
+                    info = ex.SocketErrorCode == SocketError.ConnectionRefused ? "connection refused" : ex.SocketErrorCode.ToString();
+                }
+                catch (Exception) { info = "failed"; }
+            }
+            else
+            {
+                int code = 0; string err = ""; bool certBad = false; DateTime notAfter = DateTime.MinValue;
+                try
+                {
+                    HttpWebRequest rq = (HttpWebRequest)WebRequest.Create(t.Url);
+                    rq.Method = "GET"; rq.Timeout = Engine.HttpTimeoutMs; rq.ReadWriteTimeout = Engine.HttpTimeoutMs;
+                    rq.KeepAlive = false; rq.AllowAutoRedirect = false; rq.UserAgent = "PingSight";
+                    rq.ServerCertificateValidationCallback = delegate(object sender, X509Certificate cert, X509Chain chain, SslPolicyErrors errors)
+                    {
+                        try { if (cert != null) notAfter = new X509Certificate2(cert).NotAfter; } catch (Exception) { }
+                        if (errors != SslPolicyErrors.None) certBad = true;
+                        return errors == SslPolicyErrors.None;   // never accept a certificate Windows does not trust
+                    };
+                    try
+                    {
+                        using (HttpWebResponse rs = (HttpWebResponse)rq.GetResponse()) { code = (int)rs.StatusCode; }
+                    }
+                    catch (WebException ex)
+                    {
+                        HttpWebResponse rs = ex.Response as HttpWebResponse;
+                        if (rs != null) { code = (int)rs.StatusCode; rs.Close(); }
+                        else err = ex.Status.ToString();
+                    }
+                }
+                catch (Exception ex) { err = ex.GetType().Name; }
+                if (code > 0 && code < 500) { rtt = Elapsed(s); info = "HTTP " + code; }
+                else if (code > 0) info = "HTTP " + code + " (server error)";
+                else if (certBad) info = "certificate not trusted";
+                else if (err == "Timeout") info = "no answer in " + (Engine.HttpTimeoutMs / 1000) + " s";
+                else if (err == "NameResolutionFailure") info = "name not resolved";
+                else if (err == "ConnectFailure") info = "connection failed";
+                else info = err.Length > 0 ? err : "failed";
+                if (notAfter != DateTime.MinValue) certDays = (int)Math.Floor((notAfter - DateTime.Now).TotalDays);
+            }
+            lock (t.Lock)
+            {
+                if (t.Removed || j.Epoch != t.Epoch || t.Service == null) return;
+                t.Service.Add(j.T, rtt);
+                t.ServiceInfo = info;
+                if (certDays != int.MinValue) t.CertDays = certDays;
             }
         }
 
@@ -203,6 +321,7 @@ namespace PingSight
         public const int MaxSamples = 120000;      // per hop (~33 h at one probe per second)
         public const int MaxTargets = 24;
         public static int TimeoutMs = 2000;
+        public static int HttpTimeoutMs = 10000;
         public static readonly byte[] Payload = new byte[32];
 
         static readonly DateTime Epoch1970 = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -233,38 +352,81 @@ namespace PingSight
             return null;
         }
 
-        public static string CleanHost(string h)
+        // Understands "host", "host:port" (adds a TCP port check) and "http(s)://..." (adds a web check).
+        public static Spec ParseSpec(string s)
         {
-            if (h == null) return "";
-            h = h.Trim();
-            int i = h.IndexOf("://", StringComparison.Ordinal);
-            if (i >= 0) h = h.Substring(i + 3);
-            i = h.IndexOfAny(new char[] { '/', '?', '#' });
-            if (i >= 0) h = h.Substring(0, i);
-            i = h.IndexOf(':');
-            if (i >= 0 && i == h.LastIndexOf(':')) h = h.Substring(0, i);   // host:port
-            return h.Trim('[', ']', ' ').ToLowerInvariant();
+            if (s == null) return null;
+            s = s.Trim();
+            if (s.Length == 0 || s.Length > 400) return null;
+            Spec sp = new Spec();
+            string low = s.ToLowerInvariant();
+            if (low.StartsWith("http://") || low.StartsWith("https://"))
+            {
+                Uri u;
+                if (!Uri.TryCreate(s, UriKind.Absolute, out u) || u.Host.Length == 0) return null;
+                sp.Kind = "http"; sp.Host = u.DnsSafeHost.ToLowerInvariant(); sp.Port = u.Port;
+                sp.Url = u.GetLeftPart(UriPartial.Query);
+                sp.Label = u.Scheme == "https" ? "HTTPS" : "HTTP";
+                sp.Name = u.AbsolutePath == "/" && u.Query.Length == 0 ? u.Scheme + "://" + u.Authority.ToLowerInvariant() : sp.Url;
+            }
+            else
+            {
+                int i = s.IndexOf("://", StringComparison.Ordinal);
+                if (i >= 0) s = s.Substring(i + 3);
+                i = s.IndexOfAny(new char[] { '/', '?', '#' });
+                if (i >= 0) s = s.Substring(0, i);
+                string host = s; int port = 0;
+                if (s.StartsWith("["))
+                {
+                    int e = s.IndexOf(']');
+                    if (e < 0) return null;
+                    host = s.Substring(1, e - 1);
+                    string rest = s.Substring(e + 1);
+                    if (rest.StartsWith(":") && (!int.TryParse(rest.Substring(1), out port) || port < 1 || port > 65535)) return null;
+                }
+                else
+                {
+                    i = s.IndexOf(':');
+                    if (i >= 0 && i == s.LastIndexOf(':'))
+                    {
+                        host = s.Substring(0, i);
+                        if (!int.TryParse(s.Substring(i + 1), out port) || port < 1 || port > 65535) return null;
+                    }
+                }
+                sp.Host = host.Trim().ToLowerInvariant();
+                if (port > 0)
+                {
+                    sp.Kind = "tcp"; sp.Port = port; sp.Label = "TCP " + port;
+                    sp.Name = (sp.Host.IndexOf(':') >= 0 ? "[" + sp.Host + "]" : sp.Host) + ":" + port;
+                }
+                else sp.Name = sp.Host;
+            }
+            if (sp.Host.Length == 0 || sp.Host.Length > 253 || Uri.CheckHostName(sp.Host) == UriHostNameType.Unknown) return null;
+            return sp;
         }
 
-        public static Target Add(string host, int intervalMs, bool paused, out string err)
+        public static Target Add(string input, int intervalMs, bool paused, out string err)
         {
             err = "";
-            host = CleanHost(host);
-            if (host.Length == 0 || host.Length > 253 || Uri.CheckHostName(host) == UriHostNameType.Unknown)
+            Spec sp = ParseSpec(input);
+            if (sp == null)
             {
-                err = "That is not a valid host name or IP address";
+                err = "Not a valid host name, IP address, host:port or web address";
                 return null;
             }
             Target t;
             lock (gate)
             {
-                foreach (Target x in targets) if (x.Host == host) return x;
+                foreach (Target x in targets) if (x.Name == sp.Name) return x;
                 if (targets.Count >= MaxTargets) { err = "Target limit reached (" + MaxTargets + ")"; return null; }
                 t = new Target();
-                t.Id = nextId++; t.Host = host; t.Paused = paused;
+                t.Id = nextId++; t.Name = sp.Name; t.Host = sp.Host; t.Paused = paused;
+                t.Kind = sp.Kind; t.Port = sp.Port; t.Url = sp.Url; t.ServiceLabel = sp.Label;
+                if (sp.Kind.Length > 0) t.Service = new Hop();
                 t.IntervalMs = ClampInterval(intervalMs);
                 targets.Add(t);
             }
+            if (LogDir != null) RestoreTarget(t);
             t.Start();
             Save();
             return t;
@@ -325,7 +487,7 @@ namespace PingSight
             {
                 StringBuilder sb = new StringBuilder();
                 foreach (Target t in Snapshot())
-                    sb.Append(t.Host).Append('\t').Append(t.IntervalMs).Append('\t').Append(t.Paused ? "1" : "0").Append("\r\n");
+                    sb.Append(t.Name).Append('\t').Append(t.IntervalMs).Append('\t').Append(t.Paused ? "1" : "0").Append("\r\n");
                 File.WriteAllText(path, sb.ToString());
             }
             catch (Exception) { }
@@ -341,6 +503,7 @@ namespace PingSight
         static long logFrom;
         static readonly object logGate = new object();
         static readonly Dictionary<string, StringBuilder> logPending = new Dictionary<string, StringBuilder>();
+        static readonly Dictionary<string, string> logHeaders = new Dictionary<string, string>();
         const string LogColumns = "time;target;hop;ip;hostname;destination;sent;lost;loss_pct;min_ms;avg_ms;max_ms;jitter_ms";
 
         public static void StartLog(string dir, int seconds)
@@ -374,7 +537,8 @@ namespace PingSight
                         long now = NowMs();
                         if (now - logFrom > 6 * 3600000L) logFrom = now / LogStepMs * LogStepMs;   // PC was asleep
                         // Wait out the probe timeout so late "no reply" results are counted.
-                        while (logFrom + LogStepMs + TimeoutMs + 500 <= now)
+                        if (logPending.Count > 0) FlushPending();
+                        while (logFrom + LogStepMs + HttpTimeoutMs + 500 <= now)
                         {
                             WritePeriod(logFrom, logFrom + LogStepMs);
                             logFrom += LogStepMs;
@@ -408,11 +572,34 @@ namespace PingSight
             return s;
         }
 
-        static string SafeName(string host)
+        internal static string SafeName(string host)
         {
             StringBuilder sb = new StringBuilder(host);
             foreach (char bad in Path.GetInvalidFileNameChars()) sb.Replace(bad, '-');
             return sb.ToString();
+        }
+
+        static void AppendRow(StringBuilder sb, string stamp, string sep, CultureInfo ci, string target, int hop, string ip, string name, bool dest, Stats st)
+        {
+            int got = st.Sent - st.Lost;
+            sb.Append(stamp).Append(sep).Append(target).Append(sep).Append(hop).Append(sep);
+            sb.Append(ip).Append(sep).Append(CsvText(name, sep)).Append(sep).Append(dest ? "1" : "0").Append(sep);
+            sb.Append(st.Sent).Append(sep).Append(st.Lost).Append(sep);
+            sb.Append((st.Lost * 100.0 / st.Sent).ToString("0.0", ci)).Append(sep);
+            if (got > 0)
+            {
+                sb.Append(st.Min.ToString("0.00", ci)).Append(sep);
+                sb.Append((st.Sum / got).ToString("0.00", ci)).Append(sep);
+                sb.Append(st.Max.ToString("0.00", ci)).Append(sep);
+            }
+            else sb.Append(sep).Append(sep).Append(sep);
+            if (st.JitN > 0) sb.Append((st.JitSum / st.JitN).ToString("0.00", ci));
+            sb.Append("\r\n");
+        }
+
+        static string TargetFile(Target t, DateTime day)
+        {
+            return Path.Combine(LogDir, SafeName(t.Name) + "_" + day.ToString("yyyy-MM-dd") + ".csv");
         }
 
         static void WritePeriod(long from, long to)
@@ -423,41 +610,42 @@ namespace PingSight
             string stamp = start.ToString("yyyy-MM-dd HH:mm:ss");
             foreach (Target t in Snapshot())
             {
-                StringBuilder sb = null;
+                StringBuilder sb = new StringBuilder();
                 lock (t.Lock)
                 {
+                    string name = CsvText(t.Name, sep);
                     int vis = t.VisibleHops();
                     for (int i = 0; i < vis; i++)
                     {
                         Hop h = t.Hops[i];
                         Stats st = Server.Compute(h.Samples, from, to);
-                        if (st.Sent == 0) continue;
-                        if (sb == null) sb = new StringBuilder();
-                        int got = st.Sent - st.Lost;
-                        sb.Append(stamp).Append(sep).Append(t.Host).Append(sep).Append(h.Ttl).Append(sep);
-                        sb.Append(h.Ip).Append(sep).Append(CsvText(NameOf(h.Ip), sep)).Append(sep);
-                        sb.Append(t.DestTtl == h.Ttl ? "1" : "0").Append(sep);
-                        sb.Append(st.Sent).Append(sep).Append(st.Lost).Append(sep);
-                        sb.Append((st.Lost * 100.0 / st.Sent).ToString("0.0", ci)).Append(sep);
-                        if (got > 0)
-                        {
-                            sb.Append(st.Min.ToString("0.00", ci)).Append(sep);
-                            sb.Append((st.Sum / got).ToString("0.00", ci)).Append(sep);
-                            sb.Append(st.Max.ToString("0.00", ci)).Append(sep);
-                        }
-                        else sb.Append(sep).Append(sep).Append(sep);
-                        if (st.JitN > 0) sb.Append((st.JitSum / st.JitN).ToString("0.00", ci));
-                        sb.Append("\r\n");
+                        if (st.Sent > 0) AppendRow(sb, stamp, sep, ci, name, h.Ttl, h.Ip, NameOf(h.Ip), t.DestTtl == h.Ttl, st);
+                    }
+                    if (t.Service != null)
+                    {
+                        // The service check is saved as "hop 0".
+                        Stats st = Server.Compute(t.Service.Samples, from, to);
+                        if (st.Sent > 0) AppendRow(sb, stamp, sep, ci, name, 0, "", t.ServiceLabel, false, st);
                     }
                 }
-                if (sb == null) continue;
-                string path = Path.Combine(LogDir, SafeName(t.Host) + "_" + start.ToString("yyyy-MM-dd") + ".csv");
-                StringBuilder p;
-                if (!logPending.TryGetValue(path, out p)) { p = new StringBuilder(); logPending[path] = p; }
-                if (p.Length < 8000000) p.Append(sb);
+                if (sb.Length > 0) QueueCsv(TargetFile(t, start), LogColumns.Replace(";", sep), sb.ToString());
             }
+            FlushPending();
+        }
 
-            // A file that is open in Excel cannot be appended to: keep its rows and retry next period.
+        // Caller holds logGate.
+        static void QueueCsv(string path, string header, string rows)
+        {
+            StringBuilder p;
+            if (!logPending.TryGetValue(path, out p)) { p = new StringBuilder(); logPending[path] = p; }
+            logHeaders[path] = header;
+            if (p.Length < 8000000) p.Append(rows);
+        }
+
+        // A file that is open in Excel cannot be appended to: its rows are kept and retried.
+        // Caller holds logGate.
+        static void FlushPending()
+        {
             string failed = "";
             foreach (string path in new List<string>(logPending.Keys))
             {
@@ -466,7 +654,7 @@ namespace PingSight
                     bool fresh = !File.Exists(path) || new FileInfo(path).Length == 0;
                     using (StreamWriter w = new StreamWriter(path, true, new UTF8Encoding(true)))
                     {
-                        if (fresh) w.WriteLine(LogColumns.Replace(";", sep));
+                        if (fresh) w.WriteLine(logHeaders[path]);
                         w.Write(logPending[path].ToString());
                     }
                     logPending.Remove(path);
@@ -477,6 +665,104 @@ namespace PingSight
                 }
             }
             LogError = failed;
+        }
+
+        // For the other result files (events, speed tests). "header" uses ';' and is localised here.
+        internal static void AppendCsv(string file, string header, string rows)
+        {
+            if (LogDir == null) return;
+            string sep = CultureInfo.CurrentCulture.TextInfo.ListSeparator;
+            lock (logGate)
+            {
+                QueueCsv(Path.Combine(LogDir, file), header.Replace(";", sep), rows);
+                FlushPending();
+            }
+        }
+
+        internal static long ToMs(DateTime local) { return (long)(local.ToUniversalTime() - Epoch1970).TotalMilliseconds; }
+
+        internal static string[] ReadShared(string path)
+        {
+            List<string> lines = new List<string>();
+            using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (StreamReader r = new StreamReader(fs, Encoding.UTF8))
+            {
+                string line;
+                while ((line = r.ReadLine()) != null) lines.Add(line);
+            }
+            return lines.ToArray();
+        }
+
+        // Rebuilds the last 24 hours of a target's graphs from its saved CSV files. The files hold
+        // one summary row per hop per period, so the restored detail is one period (a minute by default):
+        // probes sent and lost, and the fastest, average and slowest reply, are exact for each period.
+        static void RestoreTarget(Target t)
+        {
+            CultureInfo ci = CultureInfo.CurrentCulture;
+            string[] sep = new string[] { ci.TextInfo.ListSeparator };
+            long cutoff = NowMs() - 24 * 3600000L;
+            for (int d = 1; d >= 0; d--)
+            {
+                string path = TargetFile(t, DateTime.Now.AddDays(-d));
+                if (!File.Exists(path)) continue;
+                string[] lines;
+                try { lines = ReadShared(path); } catch (Exception) { continue; }
+                lock (t.Lock)
+                {
+                    foreach (string line in lines)
+                    {
+                        string[] p = line.Split(sep, StringSplitOptions.None);
+                        if (p.Length < 12) continue;
+                        DateTime dt; int ttl, sent, lost;
+                        if (!DateTime.TryParseExact(p[0], "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out dt)) continue;
+                        if (!int.TryParse(p[2], out ttl) || !int.TryParse(p[6], out sent) || !int.TryParse(p[7], out lost)) continue;
+                        if (ttl < 0 || ttl > MaxHops || sent <= 0 || sent > 100000 || lost < 0 || lost > sent) continue;
+                        long T = ToMs(dt);
+                        if (T < cutoff) continue;
+                        double mn = 0, av = 0, mx = 0;
+                        if (lost < sent && (!double.TryParse(p[9], NumberStyles.Float, ci, out mn) || !double.TryParse(p[10], NumberStyles.Float, ci, out av) || !double.TryParse(p[11], NumberStyles.Float, ci, out mx))) continue;
+                        Hop h;
+                        if (ttl == 0) { h = t.Service; if (h == null) continue; }
+                        else
+                        {
+                            while (t.Hops.Count < ttl) { Hop n = new Hop(); n.Ttl = t.Hops.Count + 1; t.Hops.Add(n); }
+                            h = t.Hops[ttl - 1];
+                            if (p[3].Length > 0) { h.Ip = p[3]; if (!h.Ips.ContainsKey(p[3])) h.Ips[p[3]] = 1; }
+                            if (ttl > t.Highest && lost < sent) t.Highest = ttl;
+                            if (p[5] == "1") t.DestTtl = ttl;
+                        }
+                        Synthesize(h, T, sent, lost, mn, av, mx);
+                    }
+                }
+            }
+            lock (t.Lock)
+            {
+                // Hops past the last known destination belong to an older, longer route.
+                for (int i = t.DestTtl > 0 ? t.DestTtl : t.Hops.Count; i < t.Hops.Count; i++) t.Hops[i].Clear();
+            }
+            foreach (Hop h in t.Hops.ToArray()) if (h.Ip.Length > 0) EnsureName(h.Ip);
+        }
+
+        // Spreads one saved period back into samples that reproduce its sent / lost / min / avg / max.
+        static void Synthesize(Hop h, long T, int sent, int lost, double mn, double av, double mx)
+        {
+            int got = sent - lost;
+            double rest = got > 2 ? Math.Max(mn, Math.Min(mx, (av * got - mn - mx) / (got - 2))) : av;
+            int lo = got / 3, hi = (2 * got) / 3;
+            if (got == 2) { lo = 0; hi = 1; }
+            double spacing = LogStepMs / (double)sent;
+            int seen = 0;
+            for (int k = 0; k < sent; k++)
+            {
+                bool isLost = (long)(k + 1) * lost / sent > (long)k * lost / sent;
+                float v = -1f;
+                if (!isLost)
+                {
+                    v = (float)(got == 1 ? av : seen == lo ? mn : seen == hi ? mx : rest);
+                    seen++;
+                }
+                h.Add(T + (long)(k * spacing), v);
+            }
         }
 
         public static void EnsureName(string ip)
@@ -601,6 +887,10 @@ namespace PingSight
                 {
                     Send(c, 200, "application/json; charset=utf-8", BuildState(q));
                 }
+                else if (path == "/api/extras")
+                {
+                    Send(c, 200, "application/json; charset=utf-8", Extras.Build(q));
+                }
                 else if (path == "/api/export")
                 {
                     Export(c, q);
@@ -614,7 +904,17 @@ namespace PingSight
                     string err;
                     Target t = Engine.Add(q["host"], Int(q["interval"], 1000), false, out err);
                     if (t == null) Send(c, 200, "application/json", "{\"ok\":false,\"error\":" + Q(err) + "}");
-                    else Send(c, 200, "application/json", "{\"ok\":true,\"id\":" + t.Id + ",\"host\":" + Q(t.Host) + "}");
+                    else Send(c, 200, "application/json", "{\"ok\":true,\"id\":" + t.Id + ",\"host\":" + Q(t.Name) + "}");
+                }
+                else if (path == "/api/speed/run")
+                {
+                    Ok(c, SpeedTest.Start());
+                }
+                else if (path == "/api/settings")
+                {
+                    foreach (string key in q.AllKeys) if (key != null) Settings.Set(key, q[key]);
+                    Settings.Save();
+                    Ok(c, true);
                 }
                 else if (path == "/api/remove")
                 {
@@ -669,7 +969,7 @@ namespace PingSight
             c.Response.OutputStream.Write(b, 0, b.Length);
         }
 
-        static int Int(string s, int def)
+        internal static int Int(string s, int def)
         {
             int v;
             return int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out v) ? v : def;
@@ -677,14 +977,14 @@ namespace PingSight
 
         // ---------- JSON ----------
 
-        static string Q(string s)
+        internal static string Q(string s)
         {
             StringBuilder sb = new StringBuilder();
             Str(sb, s);
             return sb.ToString();
         }
 
-        static void Str(StringBuilder sb, string s)
+        internal static void Str(StringBuilder sb, string s)
         {
             sb.Append('"');
             if (s != null)
@@ -701,13 +1001,13 @@ namespace PingSight
             sb.Append('"');
         }
 
-        static void Num(StringBuilder sb, double v)
+        internal static void Num(StringBuilder sb, double v)
         {
             if (double.IsNaN(v) || double.IsInfinity(v)) sb.Append("null");
             else sb.Append(v.ToString("0.##", CultureInfo.InvariantCulture));
         }
 
-        static int LowerBound(List<Sample> s, long t)
+        internal static int LowerBound(List<Sample> s, long t)
         {
             int lo = 0, hi = s.Count;
             while (lo < hi)
@@ -718,7 +1018,7 @@ namespace PingSight
             return lo;
         }
 
-        static Stats Compute(List<Sample> s, long from) { return Compute(s, from, long.MaxValue); }
+        internal static Stats Compute(List<Sample> s, long from) { return Compute(s, from, long.MaxValue); }
 
         internal static Stats Compute(List<Sample> s, long from, long to)
         {
@@ -739,7 +1039,7 @@ namespace PingSight
             return st;
         }
 
-        static void AppendStats(StringBuilder sb, Stats st)
+        internal static void AppendStats(StringBuilder sb, Stats st)
         {
             int got = st.Sent - st.Lost;
             sb.Append("\"sent\":").Append(st.Sent).Append(",\"lost\":").Append(st.Lost);
@@ -750,7 +1050,7 @@ namespace PingSight
             sb.Append(",\"jitter\":"); Num(sb, st.JitN > 0 ? st.JitSum / st.JitN : double.NaN);
         }
 
-        static void AppendSeries(StringBuilder sb, List<Sample> s, long from, long step, int n)
+        internal static void AppendSeries(StringBuilder sb, List<Sample> s, long from, long step, int n)
         {
             int[] sent = new int[n]; int[] lost = new int[n];
             double[] sum = new double[n]; float[] mn = new float[n]; float[] mx = new float[n];
@@ -799,7 +1099,11 @@ namespace PingSight
 
             long now = Engine.NowMs();
             StringBuilder sb = new StringBuilder(32768);
-            sb.Append("{\"now\":").Append(now).Append(",\"timeout\":").Append(Engine.TimeoutMs).Append(",\"gateways\":[");
+            sb.Append("{\"v\":2,\"now\":").Append(now).Append(",\"timeout\":").Append(Engine.TimeoutMs);
+            sb.Append(",\"speedRunning\":").Append(SpeedTest.Running ? "true" : "false");
+            sb.Append(",\"events24\":").Append(Events.CountSince(now - 24 * 3600000L));
+            sb.Append(",\"settings\":"); Settings.AppendJson(sb);
+            sb.Append(",\"gateways\":[");
             bool first = true;
             foreach (string g in Engine.Gateways()) { if (!first) sb.Append(','); first = false; Str(sb, g); }
             sb.Append("],\"log\":");
@@ -820,14 +1124,20 @@ namespace PingSight
                 lock (t.Lock)
                 {
                     long from = WindowStart(t, now, window);
-                    sb.Append("{\"id\":").Append(t.Id).Append(",\"host\":"); Str(sb, t.Host);
+                    sb.Append("{\"id\":").Append(t.Id).Append(",\"host\":"); Str(sb, t.Name);
+                    sb.Append(",\"svc\":"); Str(sb, t.ServiceLabel);
+                    sb.Append(",\"svcInfo\":"); Str(sb, t.ServiceInfo);
+                    sb.Append(",\"kind\":"); Str(sb, t.Kind);
+                    sb.Append(",\"certDays\":"); if (t.CertDays == int.MinValue) sb.Append("null"); else sb.Append(t.CertDays);
+                    sb.Append(",\"event\":"); Str(sb, t.OpenOutage != null ? "outage" : t.OpenLoss != null ? "loss" : t.OpenLatency != null ? "latency" : "");
                     sb.Append(",\"ip\":"); Str(sb, t.Address == null ? "" : t.Address.ToString());
                     sb.Append(",\"error\":"); Str(sb, t.Error);
                     sb.Append(",\"interval\":").Append(t.IntervalMs);
                     sb.Append(",\"paused\":").Append(t.Paused ? "true" : "false");
                     sb.Append(",\"destTtl\":").Append(t.DestTtl);
                     sb.Append(",\"rounds\":").Append(t.Round).Append(',');
-                    Stats st = t.DestTtl > 0 && t.DestTtl <= t.Hops.Count ? Compute(t.Hops[t.DestTtl - 1].Samples, from) : new Stats();
+                    Hop health = t.HealthHop();
+                    Stats st = health != null ? Compute(health.Samples, from) : new Stats();
                     AppendStats(sb, st);
                     sb.Append('}');
                 }
@@ -865,7 +1175,19 @@ namespace PingSight
                         }
                         sb.Append('}');
                     }
-                    sb.Append("]}");
+                    sb.Append("],\"service\":");
+                    if (sel.Service == null) sb.Append("null");
+                    else
+                    {
+                        sb.Append("{\"label\":"); Str(sb, sel.ServiceLabel);
+                        sb.Append(",\"info\":"); Str(sb, sel.ServiceInfo); sb.Append(',');
+                        AppendStats(sb, Compute(sel.Service.Samples, from));
+                        sb.Append(",\"series\":");
+                        AppendSeries(sb, sel.Service.Samples, fromA, step, n);
+                        sb.Append('}');
+                    }
+                    sb.Append(",\"events\":"); Events.AppendJson(sb, sel.Name, 30);
+                    sb.Append('}');
                 }
             }
             sb.Append('}');
@@ -894,7 +1216,7 @@ namespace PingSight
             CultureInfo ci = CultureInfo.CurrentCulture;
             string sep = ci.TextInfo.ListSeparator;
             foreach (object[] h in hops) h[2] = Engine.CsvText((string)h[2], sep);
-            string safe = t.Host.Replace(':', '-');
+            string safe = Engine.SafeName(t.Name);
             c.Response.StatusCode = 200;
             c.Response.ContentType = "text/csv; charset=utf-8";
             c.Response.Headers["Content-Disposition"] = "attachment; filename=\"pingsight-" + safe + "-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".csv\"";
@@ -904,7 +1226,7 @@ namespace PingSight
                 w.WriteLine("time" + sep + "target" + sep + "hop" + sep + "ip" + sep + "hostname" + sep + "latency_ms" + sep + "lost");
                 foreach (object[] h in hops)
                 {
-                    string head = sep + t.Host + sep + h[0] + sep + h[1] + sep + h[2] + sep;
+                    string head = sep + Engine.CsvText(t.Name, sep) + sep + h[0] + sep + h[1] + sep + h[2] + sep;
                     foreach (Sample s in (Sample[])h[3])
                     {
                         w.Write(Engine.FromMs(s.T).ToString("yyyy-MM-dd HH:mm:ss"));

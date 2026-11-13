@@ -1,7 +1,8 @@
 # PingSight
 
-A PingPlotter-style network monitor for Windows: continuous traceroute with
-latency and packet loss at every hop, in a browser dashboard.
+A network monitor for Windows in the spirit of PingPlotter: continuous
+traceroute with latency and packet loss at every hop, service checks, DNS check,
+speed test, and an outage log with alerts, all in a browser dashboard.
 
 Nothing to install and no admin rights needed. It runs on the PowerShell and
 .NET Framework that ship with Windows 10 and 11.
@@ -34,33 +35,79 @@ With options:
 
 Or download the repository and double-click `Start-PingSight.cmd`.
 
+Starting PingSight while it is already running on the same port just opens the
+dashboard of the running copy.
+
 ## What it does
 
-- **Several hosts at once.** Type or paste a list of host names or IP addresses.
+### Hosts
+
+Type or paste one host or a whole list. Three kinds are understood:
+
+| You type | What is checked |
+|---|---|
+| `example.com` or `10.0.0.1` | Ping and the route, hop by hop. |
+| `example.com:443` | The same, plus whether that TCP port accepts connections and how fast. |
+| `https://example.com/page` | The same, plus a web request: response time, status code and certificate expiry. |
+
+For each host you get:
+
 - **Route, hop by hop.** Loss, last / average / min / max latency and jitter for
   every router on the way.
-- **Timelines.** Latency and packet loss for the destination and any hop you
-  choose, over the last minute up to 24 hours.
-- **A verdict in plain words.** Where loss or delay starts, and which hops only
-  look lossy because the router gives ping replies low priority.
-- **Results on disk.** One CSV per host per day, one row per hop per minute,
-  written in the PC's regional format so the files open directly in Excel.
+- **Timelines.** Latency and loss for the destination, the service check and any
+  hop you choose, over the last minute up to 24 hours.
+- **A verdict in plain words.** Where loss or delay starts, whether a failing
+  service is a network or a server problem, and which hops only look lossy
+  because the router gives ping replies low priority.
+- **Events.** Every outage, spell of packet loss and spell of high latency, with
+  start, duration and where the path stopped answering.
+
+### Network checks
+
+- **Speed test.** Download, upload and latency against Cloudflare's public test
+  servers (`speed.cloudflare.com`), on demand or on a schedule. A test moves
+  real data: about 8 seconds of download and 8 of upload at full line speed.
+- **DNS.** Lookup time and failures for the DNS servers this PC uses, next to
+  two public servers for comparison.
+- **Local link.** Adapter, link speed, addresses, gateway, public address, and
+  Wi-Fi signal over time when connected by Wi-Fi.
+- **Alerts.** A Windows notification when an outage, packet loss or high latency
+  starts and ends. The limits are adjustable in the dashboard.
+
+### Results on disk
+
+Everything is saved as CSV in the PC's regional format, so the files open
+directly in Excel:
+
+| File | Content |
+|---|---|
+| `<host>_<date>.csv` | One row per hop per minute: sent, lost, min / avg / max latency, jitter. Hop `0` is the service check. |
+| `events_<month>.csv` | Outages, packet loss and high latency, with start, end and details. |
+| `speedtest_<month>.csv` | Every speed test. |
+
+On start-up the last 24 hours of each host's graphs are rebuilt from these
+files, at one-minute detail.
 
 ## Good to know
 
-- Probes are ICMP echo (ping). A host that blocks ping shows as not answering
-  even when it is up.
+- Ping probes are ICMP echo. A host that blocks ping shows as not answering;
+  add it as `host:port` or as a web address to check the service instead.
+- Web checks run at most once every 5 seconds and never accept a certificate
+  that Windows does not trust.
+- The public address is read from Cloudflare (`cloudflare.com/cdn-cgi/trace`).
 - The dashboard listens on `localhost` only and cannot be reached from other
   machines.
-- History in the dashboard is kept in memory and starts empty after a restart;
-  the CSV files are the lasting record.
+- Notifications appear only while PingSight is running; it does not install a
+  service or start with Windows.
 
 ## Files
 
 | File | Purpose |
 |---|---|
 | `run.ps1` | Download-and-start script for the one-line command. |
-| `PingSight.ps1` | Starts the engine and the local web server. |
-| `engine.cs` | Probe engine and HTTP API, compiled at start-up. |
+| `PingSight.ps1` | Starts the engine, the local web server and the notification icon. |
+| `engine.cs` | Traceroute engine, service checks, result files and HTTP API. |
+| `checks.cs` | Events and alerts, DNS check, local link info and speed test. |
+| `tray.cs` | Notification icon. |
 | `dashboard.html` | The dashboard. |
 | `Start-PingSight.cmd` | Double-click launcher. |

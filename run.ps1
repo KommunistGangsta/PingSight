@@ -22,7 +22,7 @@ param(
 
     $base  = 'https://raw.githubusercontent.com/KommunistGangsta/PingSight/main'
     $dir   = Join-Path $env:LOCALAPPDATA 'PingSight'
-    $files = 'PingSight.ps1', 'engine.cs', 'dashboard.html'
+    $files = 'PingSight.ps1', 'engine.cs', 'checks.cs', 'tray.cs', 'dashboard.html'
 
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     New-Item -ItemType Directory -Force -Path $dir -ErrorAction Stop | Out-Null

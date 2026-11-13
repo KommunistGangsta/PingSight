@@ -10,7 +10,7 @@
   color-scheme: light;
   --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
   --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,.10); --wash: rgba(11,11,11,.04);
-  --accent: #c4303a; --accent-fill: #c4303a; --series: #45443f;
+  --accent: #c4303a; --accent-fill: #c4303a; --series: #45443f; --cat1: #2a78d6; --cat2: #eb6834;
   --good: #0ca30c; --warning: #fab219; --critical: #d03b3b;
 }
 @media (prefers-color-scheme: dark) {
@@ -18,7 +18,7 @@
     color-scheme: dark;
     --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
     --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --wash: rgba(255,255,255,.05);
-    --accent: #ea5a61; --accent-fill: #c4303a; --series: #d9d7ce;
+    --accent: #ea5a61; --accent-fill: #c4303a; --series: #d9d7ce; --cat1: #3987e5; --cat2: #d95926;
   }
 }
 * { box-sizing: border-box; }
@@ -110,8 +110,8 @@ aside h2, .card h3 { font-size: 13px; color: var(--ink2); margin-bottom: 10px; }
 #verdict b { display: block; font-weight: 600; }
 #verdict span { color: var(--ink2); }
 
-#tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 700px) { #tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 700px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .tile .label { color: var(--ink2); font-size: 12.5px; }
 .tile .value { font-size: 26px; font-weight: 600; line-height: 1.25; }
 .tile .value small { font-size: 14px; font-weight: 500; color: var(--ink2); }
@@ -177,6 +177,48 @@ td.pin button[aria-pressed="true"] { background: var(--wash); font-weight: 600; 
 .foot { color: var(--muted); font-size: 12px; margin-top: 10px; }
 .credit { text-align: center; color: var(--muted); font-size: 12px; padding: 4px 16px 20px; }
 .stale { opacity: .5; }
+button:disabled { opacity: .6; cursor: default; }
+
+.navh { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--grid); }
+#nav { list-style: none; margin: 0; padding: 0; }
+#nav li { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 7px; cursor: pointer; }
+#nav li:hover { background: var(--wash); }
+#nav li[aria-current="true"] { background: var(--wash); box-shadow: inset 2px 0 0 var(--accent); font-weight: 600; }
+.badge { margin-left: auto; font-size: 11.5px; font-weight: 600; color: var(--ink2); background: var(--wash); border-radius: 999px; padding: 0 7px; font-variant-numeric: tabular-nums; }
+
+#page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; }
+#page[hidden] { display: none; }
+.phead { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.phead h1 { font-size: 22px; }
+.phead .sub { color: var(--ink2); margin-top: 2px; }
+.phead .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; color: var(--ink2); }
+.phead .actions select { margin-left: 4px; }
+.vrow, .warnrow { display: flex; gap: 10px; align-items: flex-start; }
+.vrow .ic, .warnrow .ic { width: 20px; height: 20px; margin-top: 1px; }
+.vrow b, .warnrow b { display: block; font-weight: 600; }
+.vrow span, .warnrow span { color: var(--ink2); }
+.live { color: var(--ink2); font-variant-numeric: tabular-nums; margin-left: 6px; }
+.progress { height: 6px; border-radius: 3px; background: var(--wash); overflow: hidden; margin-top: 10px; }
+.progress i { display: block; height: 100%; background: var(--accent-fill); border-radius: 3px; transition: width .4s linear; }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 7px 22px; margin: 0; }
+.kv dt { color: var(--ink2); }
+.kv dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.kv + .chart, #wifiInfo + .chart { margin-top: 16px; }
+.form { display: grid; gap: 12px; }
+.form label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.form input[type="number"] { width: 84px; }
+.formrow { display: flex; align-items: center; gap: 12px; }
+.note { color: var(--ink2); font-size: 12.5px; }
+.k-c1, .k-c2 { width: 16px; height: 2px; border-radius: 1px; }
+.k-c1 { background: var(--cat1); } .k-c2 { background: var(--cat2); }
+svg .line.c1 { stroke: var(--cat1); } svg .line.c2 { stroke: var(--cat2); }
+svg .mark { stroke: var(--surface); stroke-width: 2; }
+svg .mark.c1 { fill: var(--cat1); } svg .mark.c2 { fill: var(--cat2); }
+svg .hit { fill: transparent; }
+svg .hit:hover { fill: var(--wash); }
+table.events td.det { white-space: normal; min-width: 220px; color: var(--ink2); }
+td.what { white-space: nowrap; }
+td.what .ic { vertical-align: -3px; margin-right: 2px; }
 </style>
 </head>
 <body>
@@ -200,12 +242,14 @@ td.pin button[aria-pressed="true"] { background: var(--wash); font-weight: 600; 
     <form id="addForm" autocomplete="off">
       <textarea id="host" rows="2" placeholder="Hosts or IPs, one or several" aria-label="Host names or IP addresses, separated by spaces, commas or new lines" spellcheck="false"></textarea>
       <button class="primary" type="submit">Add</button>
-      <div class="hint">Separate several with spaces, commas or new lines.</div>
+      <div class="hint">Separate several with spaces, commas or new lines. Add a port (host:443) or a web address (https://…) to also check that service.</div>
       <label class="row2">Probe every <select id="addInt" aria-label="Probe interval"></select></label>
       <div id="addErr" role="alert"></div>
     </form>
     <div id="suggest"></div>
     <div id="logNote"></div>
+    <h2 class="navh">Network checks</h2>
+    <ul id="nav"></ul>
   </aside>
 
   <main id="main">
@@ -217,7 +261,7 @@ td.pin button[aria-pressed="true"] { background: var(--wash); font-weight: 600; 
     <div id="view" hidden>
       <div id="head"></div>
       <section id="verdict" class="card"></section>
-      <div id="tiles"></div>
+      <div id="tiles" class="tiles"></div>
       <section class="card">
         <h3>Latency (ms) and packet loss over time</h3>
         <div class="legend" aria-hidden="true">
@@ -242,7 +286,12 @@ td.pin button[aria-pressed="true"] { background: var(--wash); font-weight: 600; 
         </div>
         <div class="foot" id="foot"></div>
       </section>
+      <section class="card" id="tevents">
+        <h3>Events for this host</h3>
+        <div id="teventsBody"></div>
+      </section>
     </div>
+    <div id="page" hidden></div>
   </main>
 </div>
 <footer class="credit">PingSight by KommunistGangsta</footer>
@@ -259,18 +308,28 @@ const store = {
 const WINDOWS = [[60, '1 min'], [300, '5 min'], [900, '15 min'], [3600, '1 h'], [21600, '6 h'], [86400, '24 h']];
 const INTERVALS = [[500, '0.5 s'], [1000, '1 s'], [2500, '2.5 s'], [5000, '5 s'], [10000, '10 s'], [30000, '30 s'], [60000, '1 min']];
 const SUGGEST = [['1.1.1.1', 'Cloudflare 1.1.1.1'], ['8.8.8.8', 'Google 8.8.8.8']];
+const SPEED_EVERY = [[0, 'never'], [30, 'every 30 min'], [60, 'every hour'], [180, 'every 3 hours'], [360, 'every 6 hours'], [720, 'every 12 hours'], [1440, 'once a day']];
+const PAGES = { speed: 'Speed test', net: 'DNS and local link', events: 'Events', alerts: 'Alerts' };
+const EVENT_NAMES = { outage: 'Outage', loss: 'Packet loss', latency: 'High latency' };
+const DEFAULTS = { outageSec: 5, lossPct: 5, latencyMs: 150, httpMs: 2000, notify: true, speedEveryMin: 0 };
 
 let state = null;
+let extras = null;           // data for the pages under "Network checks"
+let view = store.get('view', 'target');
 let selHost = store.get('sel', '');
 let windowSec = store.get('win', 300);
 let pins = store.get('pins', {});
-let hover = null;            // { ttl, t }
-let charts = {};             // ttl -> geometry of the rendered chart
-let headKey = '';
+let hover = null;            // { key, t }
+let charts = {};             // key -> geometry of each rendered timeline
+let headKey = '', pageKey = '';
 let busy = false, pending = false, refetched = false, fails = 0;
+let lastAnswering = 0;
+const settings = () => (state && state.settings) || DEFAULTS;
 
 // ---------- formatting ----------
 const fmtMs = v => v == null ? '–' : v < 100 ? v.toFixed(1) : String(Math.round(v));
+const fmtMbps = v => v == null ? '–' : v < 10 ? v.toFixed(2) : v < 100 ? v.toFixed(1) : String(Math.round(v));
+const fmtMB = v => v == null ? '–' : v >= 1000 ? (v / 1000).toFixed(2) + ' GB' : Math.round(v) + ' MB';
 const lossOf = h => h.sent ? h.lost / h.sent : 0;
 function fmtPct(f) {
   const p = f * 100;
@@ -280,6 +339,16 @@ const pad = n => String(n).padStart(2, '0');
 function fmtTime(ms, secs) {
   const d = new Date(ms);
   return pad(d.getHours()) + ':' + pad(d.getMinutes()) + (secs ? ':' + pad(d.getSeconds()) : '');
+}
+function fmtWhen(ms, secs) {
+  const d = new Date(ms), sameDay = d.toDateString() === new Date().toDateString();
+  return (sameDay ? '' : pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + ' ') + fmtTime(ms, secs !== false);
+}
+function fmtDur(ms) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return s + ' s';
+  if (s < 3600) return Math.floor(s / 60) + ' min ' + (s % 60) + ' s';
+  return Math.floor(s / 3600) + ' h ' + Math.floor(s % 3600 / 60) + ' min';
 }
 const windowLabel = () => (WINDOWS.find(w => w[0] === windowSec) || [0, windowSec + ' s'])[1];
 const hopLabel = h => h.name || h.ip || ('hop ' + h.ttl);
@@ -300,12 +369,13 @@ function icon(level, label) {
 function targetStatus(t) {
   if (t.paused) return ['idle', 'Paused'];
   if (t.error) return ['critical', 'Cannot resolve'];
-  if (!t.destTtl) return t.rounds < 4 ? ['idle', 'Tracing route'] : ['critical', 'No reply'];
+  if (t.event === 'outage') return ['critical', 'Down'];
+  if (!t.svc && !t.destTtl) return t.rounds < 4 ? ['idle', 'Tracing route'] : ['critical', 'No reply'];
   if (t.sent < 3) return ['idle', 'Starting'];
   const l = lossOf(t);
-  if (l >= 0.05) return ['critical', 'Losing packets'];
-  if (l >= 0.01) return ['warning', 'Some loss'];
-  if (t.avg > 150) return ['warning', 'Slow'];
+  if (l >= 0.05) return ['critical', t.svc ? 'Failing' : 'Losing packets'];
+  if (l >= 0.01) return ['warning', t.svc ? 'Some failures' : 'Some loss'];
+  if (t.avg > (t.kind === 'http' ? settings().httpMs : settings().latencyMs)) return ['warning', 'Slow'];
   return ['good', 'Healthy'];
 }
 
@@ -324,7 +394,8 @@ function hopFlags(t, hops) {
   });
 }
 
-function verdict(t, hops, flags) {
+// What ping and the route say.
+function pathVerdict(t, hops, flags) {
   if (t.error) return ['critical', 'The name could not be resolved', t.error + '. Check the spelling, or this PC\'s DNS settings.'];
   const n = hops.length;
   if (!t.destTtl) {
@@ -360,19 +431,46 @@ function verdict(t, hops, flags) {
     return [dl >= 0.05 ? 'critical' : 'warning', `${fmtPct(dl)} packet loss to ${t.host}`,
       `Loss first shows at ${where} and carries through to the destination, so the fault is most likely at or just before that point.` + note];
   }
-  if (dest.avg > 150 || (dest.jitter || 0) > 30) {
+  if (dest.avg > settings().latencyMs || (dest.jitter || 0) > 30) {
     // Delay that is still there at every later hop is real; a single slow hop is not.
     let env = Infinity, best = -1, inc = 0;
     const floor = new Array(n).fill(null);
     for (let i = n - 1; i >= 0; i--) { if (responding(hops[i]) && hops[i].avg != null) { env = Math.min(env, hops[i].avg); floor[i] = env; } }
     let prev = 0;
     floor.forEach((v, i) => { if (v == null) return; if (v - prev > inc) { inc = v - prev; best = i; } prev = v; });
-    const title = dest.avg > 150 ? `High latency: ${fmtMs(dest.avg)} ms on average` : `Unstable latency: ${fmtMs(dest.jitter)} ms of jitter`;
+    const title = dest.avg > settings().latencyMs ? `High latency: ${fmtMs(dest.avg)} ms on average` : `Unstable latency: ${fmtMs(dest.jitter)} ms of jitter`;
     const text = best >= 0 ? `Most of the delay is added at hop ${best + 1} (${hopLabel(hops[best])}), about +${fmtMs(inc)} ms.` : '';
     return ['warning', title, text + note];
   }
   return ['good', 'The path looks healthy',
     `${dl > 0 ? fmtPct(dl) + ' packet loss' : 'No packet loss'} and ${fmtMs(dest.avg)} ms average to ${t.host} over the last ${windowLabel()}.` + note];
+}
+
+// With a port or web check, the service result leads and the route explains it.
+function verdict(t, d, flags) {
+  const path = pathVerdict(t, d.hops, flags), s = d.service;
+  if (!s || t.error) return path;
+  if (s.sent < 3) {
+    return t.paused ? ['idle', 'Paused', 'Probing is paused. Press Resume to continue.']
+                    : ['idle', 'Collecting data…', `Waiting for the first ${s.label} checks.`];
+  }
+  const sl = lossOf(s);
+  const cert = t.certDays != null && t.certDays < 21 ? ` The certificate expires in ${t.certDays} day${t.certDays === 1 ? '' : 's'}.` : '';
+  const pathBad = path[0] === 'critical' || path[0] === 'warning';
+  if (sl >= 0.01) {
+    const where = t.destTtl > 0 && path[0] === 'good'
+      ? ' Ping to the host is fine, so the network path is healthy and the fault is in the service itself.'
+      : pathBad ? ' ' + path[2] : '';
+    return [sl >= 0.05 ? 'critical' : 'warning', `${fmtPct(sl)} of ${s.label} checks are failing`, `Latest result: ${s.info || 'no answer'}.` + where + cert];
+  }
+  if (s.avg > (t.kind === 'http' ? settings().httpMs : settings().latencyMs)) {
+    return ['warning', `${s.label} is slow: ${fmtMs(s.avg)} ms on average`,
+      (t.destTtl > 0 && pathBad ? path[2] : 'The network path looks fine, so the delay is in the service itself.') + cert];
+  }
+  const ping = !t.destTtl ? (t.rounds >= 4 ? ' The host does not answer ping, which many servers are set up to do.' : '')
+    : pathBad ? ` Ping shows a problem, though: ${path[1]}.` : '';
+  return [cert && t.certDays < 7 ? 'warning' : 'good', `${s.label} is answering`,
+    `${fmtMs(s.avg)} ms on average over the last ${windowLabel()}; latest result: ${s.info}.` + ping + cert];
 }
 
 // ---------- data ----------
@@ -382,20 +480,24 @@ async function poll() {
   try {
     const sel = state && state.targets.find(t => t.host === selHost);
     const id = sel ? sel.id : 0;
-    const w = $('#charts').clientWidth || 800;
+    const w = (view === 'target' ? $('#charts').clientWidth : $('#page').clientWidth) || 800;
     const points = Math.max(40, Math.min(600, Math.floor((w - 104) / 3)));
     const plot = (pins[selHost] || []).concat(sel && !sel.destTtl && lastAnswering ? [lastAnswering] : []).join(',');
     const r = await fetch(`/api/state?id=${id}&window=${windowSec}&points=${points}&plot=${plot}`, { cache: 'no-store' });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     state = await r.json();
     fails = 0;
+    if (view !== 'target' && state.v >= 2) {
+      const x = await fetch(`/api/extras?window=${windowSec}&points=${points}`, { cache: 'no-store' });
+      if (x.ok) extras = await x.json();
+    }
     if (!state.targets.some(t => t.host === selHost)) {
       selHost = state.targets.length ? state.targets[0].host : '';
       store.set('sel', selHost);
     }
     // The request was built before we knew this target's id: fetch its detail right away.
     const now = state.targets.find(t => t.host === selHost);
-    if (now && (!state.detail || state.detail.id !== now.id) && !refetched) { refetched = true; pending = true; }
+    if (view === 'target' && now && (!state.detail || state.detail.id !== now.id) && !refetched) { refetched = true; pending = true; }
     else refetched = false;
     render();
   } catch (e) {
@@ -416,13 +518,18 @@ async function post(path) {
 
 function select(host) {
   selHost = host; store.set('sel', host);
+  view = 'target'; store.set('view', view);
   headKey = ''; hover = null; lastAnswering = 0;
   render(); poll();
 }
 
-// ---------- rendering ----------
-let lastAnswering = 0;
+function showPage(v) {
+  view = v; store.set('view', v);
+  pageKey = ''; hover = null;
+  render(); poll();
+}
 
+// ---------- rendering: shared ----------
 function setHTML(el, html) { if (el._h !== html) { el.innerHTML = html; el._h = html; } }
 
 function renderConn() {
@@ -445,11 +552,11 @@ function renderTargets() {
     let li = ul.children[i];
     if (!li) { li = document.createElement('li'); li.tabIndex = 0; ul.appendChild(li); }
     li.dataset.host = t.host;
-    li.setAttribute('aria-current', t.host === selHost ? 'true' : 'false');
+    li.setAttribute('aria-current', view === 'target' && t.host === selHost ? 'true' : 'false');
     const [lvl, label] = targetStatus(t);
-    const nums = t.destTtl && t.sent
-      ? `<b>${t.last == null ? 'lost' : fmtMs(t.last) + ' ms'}</b>${fmtPct(lossOf(t))} loss` : '';
-    setHTML(li, `${icon(lvl, label)}<div class="who"><div class="host">${esc(t.host)}</div><div class="st">${esc(label)}</div></div><div class="nums">${nums}</div>`);
+    const nums = (t.svc || t.destTtl) && t.sent
+      ? `<b>${t.last == null ? (t.svc ? 'failed' : 'lost') : fmtMs(t.last) + ' ms'}</b>${fmtPct(lossOf(t))} ${t.svc ? 'failed' : 'loss'}` : '';
+    setHTML(li, `${icon(lvl, label)}<div class="who"><div class="host">${esc(t.host)}</div><div class="st">${esc(label)}${t.svc ? ' · ' + esc(t.svc) + ' check' : ''}</div></div><div class="nums">${nums}</div>`);
   });
   const have = new Set(ts.map(t => t.host));
   const chips = state.gateways.map(g => [g, 'Your router ' + g]).concat(SUGGEST).filter(c => !have.has(c[0]));
@@ -461,8 +568,168 @@ function renderTargets() {
       (log.error ? `<div class="warn">${icon('warning', 'Warning')}<span>${esc(log.error)}</span></div>` : ''));
 }
 
+function renderNav() {
+  setHTML($('#nav'), Object.keys(PAGES).map(k =>
+    `<li data-view="${k}" tabindex="0" aria-current="${view === k}">${PAGES[k]}` +
+    (k === 'events' && state.events24 ? `<span class="badge" title="Events in the last 24 hours">${state.events24}</span>` : '') + '</li>').join(''));
+}
+
+function niceScale(max) {
+  if (!(max > 0)) max = 1;
+  const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p;
+  const step = (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p;
+  return { step, max: Math.ceil(max / step - 1e-9) * step };
+}
+
+// Bucket indices to join with a line. A bucket whose probes all failed always breaks the
+// line; with "bridge", buckets that simply had no probe (slower checks) are skipped over.
+function segments(s, bridge) {
+  const out = []; let cur = [];
+  for (let i = 0; i < s.avg.length; i++) {
+    if (s.avg[i] != null) cur.push(i);
+    else if (!(bridge && !s.sent[i]) && cur.length) { out.push(cur); cur = []; }
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
+const TSTEPS = [5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400].map(s => s * 1000);
+
+function timeTicks(from, span, L, PW, y) {
+  const f = v => v.toFixed(1);
+  const tstep = TSTEPS.find(x => span / x <= Math.max(2, Math.floor(PW / 90))) || 86400000;
+  const off = new Date(from).getTimezoneOffset() * 60000;
+  let g = '';
+  for (let t = Math.ceil((from - off) / tstep) * tstep + off; t < from + span; t += tstep) {
+    const x = L + (t - from) / span * PW;
+    if (x < L + 14 || x > L + PW - 14) continue;
+    g += `<text class="tick" x="${f(x)}" y="${y}" text-anchor="middle">${fmtTime(t, tstep < 60000)}</text>`;
+  }
+  return g;
+}
+
+function yGrid(sc, Y, L, PW) {
+  let g = '';
+  for (let k = 0; k * sc.step <= sc.max + 1e-9; k++) {
+    const v = k * sc.step, y = Math.round(Y(v)) + 0.5;
+    g += `<line class="${k ? 'grid' : 'axis'}" x1="${L}" x2="${L + PW}" y1="${y}" y2="${y}"/>`;
+    g += `<text class="tick" x="${L - 8}" y="${y + 4}" text-anchor="end">${sc.step < 1 ? v.toFixed(1) : v}</text>`;
+  }
+  return g;
+}
+
+// Timeline of one series. o: { loss: false to drop the loss strip, max: fixed top of the
+// scale, fmt: label for the latest value, bridge: join across buckets without probes }.
+function chartSVG(s, d, W, o) {
+  o = o || {};
+  const withLoss = o.loss !== false;
+  const L = 46, R = 58, T = 10, PH = 150, GAP = withLoss ? 14 : 0, LH = withLoss ? 24 : 0;
+  const H = T + PH + GAP + LH + 22, PW = Math.max(60, W - L - R), n = d.n, bw = PW / n;
+  const X = i => L + (i + 0.5) * bw;
+  let ymax = o.max || 0;
+  if (!o.max) for (const v of s.max) if (v != null && v > ymax) ymax = v;
+  const sc = niceScale(ymax);
+  const Y = v => T + PH - (v / sc.max) * PH;
+  const f = v => v.toFixed(1);
+  const label = o.fmt || (v => fmtMs(v) + ' ms');
+  let g = yGrid(sc, Y, L, PW);
+
+  const ly = T + PH + GAP, lb = ly + LH;
+  if (withLoss) {
+    g += `<rect class="lossbg" x="${L}" y="${ly}" width="${PW}" height="${LH}" rx="3"/>`;
+    g += `<text class="tick" x="${L - 8}" y="${ly + LH / 2 + 4}" text-anchor="end">${o.lossLabel || 'loss'}</text>`;
+    const lw = Math.max(1.5, bw - (bw > 4 ? 2 : 0));
+    for (let i = 0; i < n; i++) {
+      if (!s.lost[i]) continue;
+      const h = Math.max(3, s.lost[i] / s.sent[i] * LH);
+      g += `<rect class="loss" x="${f(X(i) - lw / 2)}" y="${f(lb - h)}" width="${f(lw)}" height="${f(h)}"/>`;
+    }
+  }
+  g += timeTicks(d.from, n * d.step, L, PW, lb + 16);
+
+  let end = -1;
+  for (const seg of segments(s, o.bridge)) {
+    end = seg[seg.length - 1];
+    if (seg.length === 1) {
+      const a = seg[0];
+      g += `<line class="bandline" x1="${f(X(a))}" x2="${f(X(a))}" y1="${f(Y(s.max[a]))}" y2="${f(Y(s.min[a]))}"/>`;
+      g += `<circle class="pt" cx="${f(X(a))}" cy="${f(Y(s.avg[a]))}" r="1.5"/>`;
+      continue;
+    }
+    let up = '', down = '', line = '';
+    seg.forEach((i, k) => {
+      up += `${k ? 'L' : 'M'}${f(X(i))} ${f(Y(s.max[i]))}`;
+      line += `${k ? 'L' : 'M'}${f(X(i))} ${f(Y(s.avg[i]))}`;
+    });
+    for (let k = seg.length - 1; k >= 0; k--) down += `L${f(X(seg[k]))} ${f(Y(s.min[seg[k]]))}`;
+    g += `<path class="band" d="${up}${down}Z"/><path class="line" d="${line}"/>`;
+  }
+  if (end >= 0) {
+    g += `<circle class="end" cx="${f(X(end))}" cy="${f(Y(s.avg[end]))}" r="4"/>`;
+    if (end >= n - (o.bridge ? 8 : 3)) g += `<text class="endlabel" x="${f(X(end) + 9)}" y="${f(Y(s.avg[end]) + 4)}">${label(s.avg[end])}</text>`;
+  }
+  g += `<line class="cross" y1="${T}" y2="${lb}" visibility="hidden"/><circle class="hdot" r="4" visibility="hidden"/>`;
+  return { svg: `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img">${g}</svg>`, geo: { L, PW, n, bw, X, Y, W } };
+}
+
+function tipHTML(m, i) {
+  const t0 = m.from + i * m.step, s = m.s;
+  const when = m.step >= 60000 ? `${fmtTime(t0)} – ${fmtTime(t0 + m.step)}`
+    : m.step > 1000 ? `${fmtTime(t0, true)} – ${fmtTime(t0 + m.step, true)}` : fmtTime(t0, true);
+  if (!s.sent[i]) return `<b>${when}</b><div>${m.kind === 'wifi' ? 'No reading' : 'No probes sent'}</div>`;
+  if (m.kind === 'wifi') {
+    return `<b>${when}</b><div>Signal <em>${Math.round(s.avg[i])}%</em></div>` +
+      (s.max[i] - s.min[i] >= 1 ? `<div>${Math.round(s.min[i])}% lowest · ${Math.round(s.max[i])}% highest</div>` : '');
+  }
+  const svc = m.kind === 'svc', word = svc ? 'Response' : 'Latency';
+  const lat = s.avg[i] == null ? `<div>${word} <em>${svc ? 'failed' : 'no reply'}</em></div>`
+    : s.sent[i] - s.lost[i] > 1
+      ? `<div>${word} <em>${fmtMs(s.avg[i])} ms</em> avg</div><div>${fmtMs(s.min[i])} min · ${fmtMs(s.max[i])} max</div>`
+      : `<div>${word} <em>${fmtMs(s.avg[i])} ms</em></div>`;
+  return `<b>${when}</b>${lat}<div>${svc ? 'Failed' : 'Lost'} <em>${s.lost[i]} of ${s.sent[i]}</em> (${fmtPct(s.lost[i] / s.sent[i])})</div>`;
+}
+
+function drawHover() {
+  for (const key of Object.keys(charts)) {
+    const m = charts[key];
+    const cross = m.el.querySelector('.cross'), dot = m.el.querySelector('.hdot'), tip = m.el.querySelector('.tip');
+    if (!cross) continue;
+    const i = hover ? Math.round((hover.t - m.from) / m.step) : -1;
+    if (i < 0 || i >= m.n) {
+      cross.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); tip.hidden = true;
+      continue;
+    }
+    const x = m.X(i);
+    cross.setAttribute('x1', x); cross.setAttribute('x2', x); cross.setAttribute('visibility', 'visible');
+    if (m.s.avg[i] != null) {
+      dot.setAttribute('cx', x); dot.setAttribute('cy', m.Y(m.s.avg[i])); dot.setAttribute('visibility', 'visible');
+    } else dot.setAttribute('visibility', 'hidden');
+    if (key === hover.key) {
+      tip.innerHTML = tipHTML(m, i);
+      tip.hidden = false;
+      const tw = tip.offsetWidth;
+      tip.style.left = (x + 14 + tw > m.W ? Math.max(0, x - 14 - tw) : x + 14) + 'px';
+    } else tip.hidden = true;
+  }
+}
+
+const CHART_SHELL = '<div class="chead"><div class="ctitle"></div></div><div class="plot"><div class="svgwrap"></div><div class="tip" hidden></div></div>';
+
+function eventsTable(list, withTarget) {
+  if (!list || !list.length) return '<div class="waiting">No outages, packet loss or high latency recorded.</div>';
+  return `<div class="tablewrap"><table class="events"><thead><tr><th class="l">Started</th>${withTarget ? '<th class="l">Host</th>' : ''}<th class="l">What</th><th>Lasted</th><th class="l">Details</th></tr></thead><tbody>` +
+    list.map(e => {
+      const lvl = e.type === 'outage' ? 'critical' : 'warning';
+      const dur = e.end ? fmtDur(e.end - e.start) : `<span class="tag">ongoing</span> ${fmtDur(state.now - e.start)}`;
+      const peak = e.type === 'loss' ? `Peak ${fmtPct(e.peak / 100)} loss. ` : e.type === 'latency' ? `Peak ${fmtMs(e.peak)} ms. ` : '';
+      return `<tr><td class="l">${fmtWhen(e.start)}</td>${withTarget ? `<td class="l">${esc(e.target)}</td>` : ''}` +
+        `<td class="l what">${icon(lvl, lvl)} ${EVENT_NAMES[e.type] || esc(e.type)}</td><td>${dur}</td><td class="l det">${esc(peak + (e.detail || ''))}</td></tr>`;
+    }).join('') + '</tbody></table></div>';
+}
+
+// ---------- rendering: a target ----------
 function renderHead(t, hopCount) {
-  const key = [t.id, t.host, t.ip, t.paused, t.interval, hopCount, t.destTtl > 0].join('|');
+  const key = [t.id, t.host, t.ip, t.paused, t.interval, hopCount, t.destTtl > 0, t.svc].join('|');
   const head = $('#head');
   if (key === headKey || head.contains(document.activeElement) && document.activeElement.tagName === 'SELECT') return;
   headKey = key;
@@ -472,7 +739,7 @@ function renderHead(t, hopCount) {
   head.innerHTML = `
     <div>
       <h1>${esc(t.host)}</h1>
-      <div class="sub">${t.ip && t.ip !== t.host ? esc(t.ip) + ' · ' : ''}${hopsTxt} · probing every
+      <div class="sub">${t.ip && t.ip !== t.host ? esc(t.ip) + ' · ' : ''}${hopsTxt}${t.svc ? ' · ' + esc(t.svc) + ' check' : ''} · probing every
         <select id="interval" aria-label="Probe interval">${opts.map(o => `<option value="${o[0]}"${o[0] === t.interval ? ' selected' : ''}>${o[1]}</option>`).join('')}</select>
       </div>
     </div>
@@ -484,170 +751,61 @@ function renderHead(t, hopCount) {
     </div>`;
 }
 
-function renderTiles(t, dest) {
-  const has = dest && dest.sent > 0;
-  const tile = (label, value, unit, note) =>
-    `<div class="card tile"><div class="label">${label}</div><div class="value">${value}${unit ? ` <small>${unit}</small>` : ''}</div><div class="note">${note}</div></div>`;
-  const got = has && dest.lost < dest.sent;
+const tile = (label, value, unit, note) =>
+  `<div class="card tile"><div class="label">${label}</div><div class="value">${value}${unit ? ` <small>${unit}</small>` : ''}</div><div class="note">${note}</div></div>`;
+
+function renderTiles(h, svc) {
+  const has = h && h.sent > 0, got = has && h.lost < h.sent;
   setHTML($('#tiles'), [
-    tile('Latency now', !has ? '–' : dest.last == null ? 'Lost' : fmtMs(dest.last), has && dest.last != null ? 'ms' : '', 'latest probe'),
-    tile('Average latency', got ? fmtMs(dest.avg) : '–', got ? 'ms' : '', got ? `min ${fmtMs(dest.min)} · max ${fmtMs(dest.max)} ms` : 'no replies in range'),
-    tile('Jitter', got && dest.jitter != null ? fmtMs(dest.jitter) : '–', got && dest.jitter != null ? 'ms' : '', 'average change between probes'),
-    tile('Packet loss', has ? fmtPct(lossOf(dest)) : '–', '', has ? `${dest.lost} of ${dest.sent} probes lost` : 'no probes in range')
+    tile(svc ? 'Response time now' : 'Latency now', !has ? '–' : h.last == null ? (svc ? 'Failed' : 'Lost') : fmtMs(h.last), has && h.last != null ? 'ms' : '', svc ? 'latest ' + esc(svc) + ' check' : 'latest probe'),
+    tile(svc ? 'Average response time' : 'Average latency', got ? fmtMs(h.avg) : '–', got ? 'ms' : '', got ? `min ${fmtMs(h.min)} · max ${fmtMs(h.max)} ms` : 'no replies in range'),
+    tile('Jitter', got && h.jitter != null ? fmtMs(h.jitter) : '–', got && h.jitter != null ? 'ms' : '', svc ? 'average change between checks' : 'average change between probes'),
+    tile(svc ? 'Failed checks' : 'Packet loss', has ? fmtPct(lossOf(h)) : '–', '', has ? `${h.lost} of ${h.sent} ${svc ? 'checks failed' : 'probes lost'}` : 'nothing sent in range')
   ].join(''));
-}
-
-function niceScale(max) {
-  if (!(max > 0)) max = 1;
-  const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p;
-  const step = (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p;
-  return { step, max: Math.ceil(max / step - 1e-9) * step };
-}
-
-function runs(a) {
-  const out = []; let s = -1;
-  for (let i = 0; i <= a.length; i++) {
-    const ok = i < a.length && a[i] != null;
-    if (ok && s < 0) s = i;
-    if (!ok && s >= 0) { out.push([s, i - 1]); s = -1; }
-  }
-  return out;
-}
-
-const TSTEPS = [5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400].map(s => s * 1000);
-
-function chartSVG(s, d, W) {
-  const L = 46, R = 58, T = 10, PH = 150, GAP = 14, LH = 24, XH = 22;
-  const H = T + PH + GAP + LH + XH, PW = Math.max(60, W - L - R), n = d.n, bw = PW / n;
-  const X = i => L + (i + 0.5) * bw;
-  let ymax = 0;
-  for (const v of s.max) if (v != null && v > ymax) ymax = v;
-  const sc = niceScale(ymax);
-  const Y = v => T + PH - (v / sc.max) * PH;
-  const f = v => v.toFixed(1);
-  let g = '';
-
-  for (let k = 0; k * sc.step <= sc.max + 1e-9; k++) {
-    const v = k * sc.step, y = Math.round(Y(v)) + 0.5;
-    g += `<line class="${k ? 'grid' : 'axis'}" x1="${L}" x2="${L + PW}" y1="${y}" y2="${y}"/>`;
-    g += `<text class="tick" x="${L - 8}" y="${y + 4}" text-anchor="end">${sc.step < 1 ? v.toFixed(1) : v}</text>`;
-  }
-
-  const ly = T + PH + GAP, lb = ly + LH;
-  g += `<rect class="lossbg" x="${L}" y="${ly}" width="${PW}" height="${LH}" rx="3"/>`;
-  g += `<text class="tick" x="${L - 8}" y="${ly + LH / 2 + 4}" text-anchor="end">loss</text>`;
-  const lw = Math.max(1.5, bw - (bw > 4 ? 2 : 0));
-  for (let i = 0; i < n; i++) {
-    if (!s.lost[i]) continue;
-    const h = Math.max(3, s.lost[i] / s.sent[i] * LH);
-    g += `<rect class="loss" x="${f(X(i) - lw / 2)}" y="${f(lb - h)}" width="${f(lw)}" height="${f(h)}"/>`;
-  }
-
-  const span = n * d.step, to = d.from + span;
-  const tstep = TSTEPS.find(x => span / x <= Math.max(2, Math.floor(PW / 90))) || 86400000;
-  const off = new Date(d.from).getTimezoneOffset() * 60000;
-  for (let t = Math.ceil((d.from - off) / tstep) * tstep + off; t < to; t += tstep) {
-    const x = L + (t - d.from) / span * PW;
-    if (x < L + 14 || x > L + PW - 14) continue;
-    g += `<text class="tick" x="${f(x)}" y="${lb + 16}" text-anchor="middle">${fmtTime(t, tstep < 60000)}</text>`;
-  }
-
-  let end = -1;
-  for (const [a, b] of runs(s.avg)) {
-    end = b;
-    if (a === b) {
-      g += `<line class="bandline" x1="${f(X(a))}" x2="${f(X(a))}" y1="${f(Y(s.max[a]))}" y2="${f(Y(s.min[a]))}"/>`;
-      g += `<circle class="pt" cx="${f(X(a))}" cy="${f(Y(s.avg[a]))}" r="1.5"/>`;
-      continue;
-    }
-    let up = '', down = '', line = '';
-    for (let i = a; i <= b; i++) {
-      up += `${i === a ? 'M' : 'L'}${f(X(i))} ${f(Y(s.max[i]))}`;
-      line += `${i === a ? 'M' : 'L'}${f(X(i))} ${f(Y(s.avg[i]))}`;
-    }
-    for (let i = b; i >= a; i--) down += `L${f(X(i))} ${f(Y(s.min[i]))}`;
-    g += `<path class="band" d="${up}${down}Z"/><path class="line" d="${line}"/>`;
-  }
-  if (end >= 0) {
-    g += `<circle class="end" cx="${f(X(end))}" cy="${f(Y(s.avg[end]))}" r="4"/>`;
-    if (end >= n - 3) g += `<text class="endlabel" x="${f(X(end) + 9)}" y="${f(Y(s.avg[end]) + 4)}">${fmtMs(s.avg[end])} ms</text>`;
-  }
-  g += `<line class="cross" y1="${T}" y2="${lb}" visibility="hidden"/><circle class="hdot" r="4" visibility="hidden"/>`;
-  return { svg: `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img">${g}</svg>`, geo: { L, PW, n, bw, X, Y, W } };
 }
 
 function renderCharts(t, d) {
   const box = $('#charts');
   const hops = d.hops;
+  const series = k => k === 0 ? d.service : hops[k - 1];
   const main = t.destTtl ? hops.length : lastAnswering;
-  let ttls = [];
-  if (main) ttls.push(main);
-  (pins[selHost] || []).slice().sort((a, b) => a - b).forEach(p => { if (!ttls.includes(p)) ttls.push(p); });
-  ttls = ttls.filter(x => hops[x - 1] && hops[x - 1].series);
+  let keys = d.service ? [0] : [];
+  if (main) keys.push(main);
+  (pins[selHost] || []).slice().sort((a, b) => a - b).forEach(p => { if (!keys.includes(p)) keys.push(p); });
+  keys = keys.filter(k => series(k) && series(k).series);
 
-  charts = {};
-  if (!ttls.length) {
+  if (!keys.length) {
     box.innerHTML = '<div class="waiting">Waiting for the first replies…</div>';
     return;
   }
   const W = Math.max(280, Math.floor(box.clientWidth));
-  [...box.children].forEach(el => { if (!el.dataset.ttl || !ttls.includes(+el.dataset.ttl)) el.remove(); });
-  ttls.forEach((ttl, idx) => {
-    const h = hops[ttl - 1];
-    let el = [...box.children].find(c => +c.dataset.ttl === ttl);
+  [...box.children].forEach(el => { if (!el.dataset.ttl || !keys.includes(+el.dataset.ttl)) el.remove(); });
+  keys.forEach((k, idx) => {
+    const h = series(k);
+    let el = [...box.children].find(c => +c.dataset.ttl === k);
     if (!el) {
       el = document.createElement('div');
-      el.className = 'chart'; el.dataset.ttl = ttl;
-      el.innerHTML = '<div class="chead"><div class="ctitle"></div></div><div class="plot"><div class="svgwrap"></div><div class="tip" hidden></div></div>';
+      el.className = 'chart'; el.dataset.ttl = k;
+      el.innerHTML = CHART_SHELL;
     }
     if (box.children[idx] !== el) box.insertBefore(el, box.children[idx] || null);
-    const isDest = t.destTtl === ttl;
-    const who = h.name ? `${esc(h.name)} <small>${esc(h.ip)}</small>` : esc(h.ip || 'no reply');
+    const isDest = t.destTtl === k;
+    const who = k === 0 ? `${esc(t.host)} <small>latest result: ${esc(h.info || 'none yet')}</small>`
+      : h.name ? `${esc(h.name)} <small>${esc(h.ip)}</small>` : esc(h.ip || 'no reply');
     setHTML(el.querySelector('.chead'),
-      `<div class="ctitle">${isDest ? 'Destination' : 'Hop ' + ttl} · ${who}</div>` +
-      (isDest || ttl === main ? '' : `<button type="button" data-unpin="${ttl}">Hide</button>`));
-    const c = chartSVG(h.series, d, W);
+      `<div class="ctitle">${k === 0 ? esc(h.label) + ' check' : isDest ? 'Destination' : 'Hop ' + k} · ${who}</div>` +
+      (k === 0 || isDest || k === main ? '' : `<button type="button" data-unpin="${k}">Hide</button>`));
+    const c = chartSVG(h.series, d, W, k === 0 ? { bridge: true, lossLabel: 'failed' } : null);
     el.querySelector('.svgwrap').innerHTML = c.svg;
     el.querySelector('svg').setAttribute('aria-label',
-      `Latency and packet loss for ${isDest ? 'the destination' : 'hop ' + ttl} over the last ${windowLabel()}`);
-    charts[ttl] = Object.assign(c.geo, { el, s: h.series, from: d.from, step: d.step, interval: t.interval });
+      `${k === 0 ? 'Response time and failures for the ' + h.label + ' check' : 'Latency and packet loss for ' + (isDest ? 'the destination' : 'hop ' + k)} over the last ${windowLabel()}`);
+    charts[String(k)] = Object.assign(c.geo, { el, s: h.series, from: d.from, step: d.step, kind: k === 0 ? 'svc' : 'hop' });
   });
-  drawHover();
 }
 
-function tipHTML(m, i) {
-  const t0 = m.from + i * m.step, s = m.s;
-  const when = m.step >= 60000 ? `${fmtTime(t0)} – ${fmtTime(t0 + m.step)}`
-    : m.step > 1000 ? `${fmtTime(t0, true)} – ${fmtTime(t0 + m.step, true)}` : fmtTime(t0, true);
-  if (!s.sent[i]) return `<b>${when}</b><div>No probes sent</div>`;
-  const lat = s.avg[i] == null ? '<div>Latency <em>no reply</em></div>'
-    : s.sent[i] - s.lost[i] > 1
-      ? `<div>Latency <em>${fmtMs(s.avg[i])} ms</em> avg</div><div>${fmtMs(s.min[i])} min · ${fmtMs(s.max[i])} max</div>`
-      : `<div>Latency <em>${fmtMs(s.avg[i])} ms</em></div>`;
-  return `<b>${when}</b>${lat}<div>Lost <em>${s.lost[i]} of ${s.sent[i]}</em> (${fmtPct(s.lost[i] / s.sent[i])})</div>`;
-}
-
-function drawHover() {
-  for (const ttl of Object.keys(charts)) {
-    const m = charts[ttl];
-    const cross = m.el.querySelector('.cross'), dot = m.el.querySelector('.hdot'), tip = m.el.querySelector('.tip');
-    const i = hover ? Math.round((hover.t - m.from) / m.step) : -1;
-    if (i < 0 || i >= m.n) {
-      cross.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); tip.hidden = true;
-      continue;
-    }
-    const x = m.X(i);
-    cross.setAttribute('x1', x); cross.setAttribute('x2', x); cross.setAttribute('visibility', 'visible');
-    if (m.s.avg[i] != null) {
-      dot.setAttribute('cx', x); dot.setAttribute('cy', m.Y(m.s.avg[i])); dot.setAttribute('visibility', 'visible');
-    } else dot.setAttribute('visibility', 'hidden');
-    if (+ttl === hover.ttl) {
-      tip.innerHTML = tipHTML(m, i);
-      tip.hidden = false;
-      const tw = tip.offsetWidth;
-      tip.style.left = (x + 14 + tw > m.W ? Math.max(0, x - 14 - tw) : x + 14) + 'px';
-    } else tip.hidden = true;
-  }
+function rangeCell(h, sc) {
+  const pct = v => (Math.min(v, sc.max) / sc.max * 100).toFixed(2);
+  return `<div class="range" title="min ${fmtMs(h.min)} · avg ${fmtMs(h.avg)} · max ${fmtMs(h.max)} ms"><i class="bar" style="left:${pct(h.min)}%;width:${(pct(h.max) - pct(h.min)).toFixed(2)}%"></i><i class="dot" style="left:${pct(h.avg)}%"></i></div>`;
 }
 
 function renderTable(t, d, flags) {
@@ -662,7 +820,6 @@ function renderTable(t, d, flags) {
     let tr = tb.children[i];
     if (!tr) { tr = document.createElement('tr'); tr.innerHTML = '<td></td>'.repeat(11); tb.appendChild(tr); }
     const isDest = t.destTtl === h.ttl, flag = flags[i], got = responding(h);
-    const pct = v => (Math.min(v, sc.max) / sc.max * 100).toFixed(2);
     let host;
     if (!h.ip) host = '<span class="dim">No reply</span>' + (flag === 'silent' ? '<small>this router does not answer ping; that is normal</small>' : '');
     else host = (h.name ? `${esc(h.name)}<small>${esc(h.ip)}</small>` : esc(h.ip)) +
@@ -678,7 +835,7 @@ function renderTable(t, d, flags) {
       got ? (h.last == null ? '<span class="dim">lost</span>' : fmtMs(h.last)) : '–',
       got ? fmtMs(h.avg) : '–', got ? fmtMs(h.min) : '–', got ? fmtMs(h.max) : '–',
       got && h.jitter != null ? fmtMs(h.jitter) : '–',
-      got ? `<div class="range" title="min ${fmtMs(h.min)} · avg ${fmtMs(h.avg)} · max ${fmtMs(h.max)} ms"><i class="bar" style="left:${pct(h.min)}%;width:${(pct(h.max) - pct(h.min)).toFixed(2)}%"></i><i class="dot" style="left:${pct(h.avg)}%"></i></div>` : '<div class="range"></div>',
+      got ? rangeCell(h, sc) : '<div class="range"></div>',
       isDest ? '<span class="dim">shown</span>'
         : `<button type="button" data-pin="${h.ttl}" aria-pressed="${pinned.includes(h.ttl)}" title="Show this hop in the timeline above">${pinned.includes(h.ttl) ? 'Shown' : 'Show'}</button>`
     ];
@@ -688,14 +845,211 @@ function renderTable(t, d, flags) {
   $('#foot').textContent = `ICMP echo, 32 bytes, one probe per hop every ${t.interval / 1000} s, ${state.timeout / 1000} s timeout. Statistics cover the last ${windowLabel()}.`;
 }
 
+// ---------- rendering: pages under "Network checks" ----------
+function skeleton(box, key, html) {
+  if (pageKey === key) return false;
+  box.innerHTML = html; box._h = null; pageKey = key;
+  return true;
+}
+
+function speedChart(res, W) {
+  // Tests are hours apart, so this chart never shows less than a day.
+  const to = Math.ceil(state.now / 60000) * 60000, from = to - Math.max(windowSec, 86400) * 1000;
+  const pts = res.filter(r => r.t >= from);
+  if (!pts.length) return '<div class="waiting">No speed tests in the last 24 hours.</div>';
+  const L = 46, R = 16, T = 10, PH = 170, H = T + PH + 22, PW = Math.max(60, W - L - R);
+  const X = t => L + (t - from) / (to - from) * PW;
+  let ymax = 0;
+  pts.forEach(r => { ymax = Math.max(ymax, r.down, r.up); });
+  const sc = niceScale(ymax), Y = v => T + PH - v / sc.max * PH, f = v => v.toFixed(1);
+  let g = yGrid(sc, Y, L, PW) + timeTicks(from, to - from, L, PW, T + PH + 16);
+  [['down', 'c1'], ['up', 'c2']].forEach(([key, cls]) => {
+    if (pts.length > 1) g += `<path class="line ${cls}" d="${pts.map((r, i) => `${i ? 'L' : 'M'}${f(X(r.t))} ${f(Y(r[key]))}`).join('')}"/>`;
+    pts.forEach(r => { g += `<circle class="mark ${cls}" cx="${f(X(r.t))}" cy="${f(Y(r[key]))}" r="4"/>`; });
+  });
+  pts.forEach(r => {   // generous hover targets
+    g += `<rect class="hit" x="${f(X(r.t) - 12)}" y="${T}" width="24" height="${PH}"><title>${fmtWhen(r.t, false)} · download ${fmtMbps(r.down)} Mbps · upload ${fmtMbps(r.up)} Mbps · latency ${fmtMs(r.latency)} ms</title></rect>`;
+  });
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Download and upload speed of each test over the last 24 hours">${g}</svg>`;
+}
+
+function renderSpeed(box) {
+  skeleton(box, 'speed', `
+    <div class="phead">
+      <div><h1>Speed test</h1><div class="sub">Download, upload and latency to the nearest Cloudflare test server.</div></div>
+      <div class="actions"><label>Run automatically <select id="speedEvery" aria-label="Automatic speed test"></select></label>
+        <button type="button" class="primary" id="speedRun">Run test now</button></div>
+    </div>
+    <section class="card" id="speedNow" hidden></section>
+    <div class="tiles" id="speedTiles"></div>
+    <section class="card"><h3>Download and upload of each test, last 24 hours (Mbps)</h3>
+      <div class="legend" aria-hidden="true"><span><i class="k-c1"></i>download</span><span><i class="k-c2"></i>upload</span></div>
+      <div id="speedChart"></div></section>
+    <section class="card"><h3>Recent tests</h3><div id="speedTable"></div><div class="foot" id="speedFoot"></div></section>`);
+  const sp = extras.speed, ok = sp.results.filter(r => !r.error);
+  const last = sp.results[sp.results.length - 1], good = ok[ok.length - 1];
+
+  const sel = $('#speedEvery');
+  if (document.activeElement !== sel) {
+    const cur = settings().speedEveryMin, opts = SPEED_EVERY.slice();
+    if (!opts.some(o => o[0] === cur)) opts.push([cur, `every ${cur} min`]);
+    setHTML(sel, opts.map(o => `<option value="${o[0]}"${o[0] === cur ? ' selected' : ''}>${o[1]}</option>`).join(''));
+  }
+  const btn = $('#speedRun');
+  btn.disabled = sp.running;
+  btn.textContent = sp.running ? 'Testing…' : 'Run test now';
+
+  const now = $('#speedNow');
+  now.hidden = !sp.running && !(last && last.error);
+  if (sp.running) {
+    const label = { latency: 'Measuring latency', download: 'Testing download', upload: 'Testing upload' }[sp.phase] || 'Starting';
+    setHTML(now, `<b>${label}…</b>${sp.live ? ` <span class="live">${fmtMbps(sp.live)} Mbps</span>` : ''}` +
+      `<div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(sp.pct * 100)}"><i style="width:${(sp.pct * 100).toFixed(0)}%"></i></div>`);
+  } else if (last && last.error) {
+    setHTML(now, `<div class="warnrow">${icon('warning', 'Warning')}<div><b>The last test failed</b><span>${fmtWhen(last.t, false)} · ${esc(last.error)}</span></div></div>`);
+  }
+
+  setHTML($('#speedTiles'), [
+    tile('Download', good ? fmtMbps(good.down) : '–', good ? 'Mbps' : '', good ? `tested ${fmtWhen(good.t, false)}` : 'no test yet'),
+    tile('Upload', good ? fmtMbps(good.up) : '–', good ? 'Mbps' : '', good ? esc(good.server) : 'press Run test now'),
+    tile('Latency', good ? fmtMs(good.latency) : '–', good ? 'ms' : '', 'to the test server'),
+    tile('Jitter', good ? fmtMs(good.jitter) : '–', good ? 'ms' : '', 'change between samples')
+  ].join(''));
+
+  const W = Math.max(280, Math.floor($('#speedChart').clientWidth));
+  setHTML($('#speedChart'), speedChart(ok, W));
+
+  const rows = sp.results.slice(-30).reverse();
+  setHTML($('#speedTable'), !rows.length ? '<div class="waiting">No tests yet.</div>'
+    : '<div class="tablewrap"><table><thead><tr><th class="l">When</th><th>Download</th><th>Upload</th><th>Latency</th><th>Jitter</th><th>Data used</th><th class="l">Server</th></tr></thead><tbody>' +
+      rows.map(r => r.error
+        ? `<tr><td class="l">${fmtWhen(r.t, false)}</td><td colspan="5" class="l dim">failed: ${esc(r.error)}</td><td class="l">${esc(r.server)}</td></tr>`
+        : `<tr><td class="l">${fmtWhen(r.t, false)}</td><td>${fmtMbps(r.down)} Mbps</td><td>${fmtMbps(r.up)} Mbps</td><td>${fmtMs(r.latency)} ms</td><td>${fmtMs(r.jitter)} ms</td><td>${fmtMB(r.downMB + r.upMB)}</td><td class="l">${esc(r.server)}</td></tr>`).join('') +
+      '</tbody></table></div>');
+  $('#speedFoot').textContent = 'Each test moves real data' + (good ? ` (the last one used ${fmtMB(good.downMB + good.upMB)})` : '') +
+    ' and fills the line for about 20 seconds, so loss and latency alerts are paused while it runs. Keep that in mind when choosing how often it runs automatically.';
+}
+
+function renderNet(box) {
+  skeleton(box, 'net', `
+    <div class="phead"><div><h1>DNS and local link</h1><div class="sub">How fast names are looked up, and how this PC is connected.</div></div></div>
+    <section class="card" id="dnsVerdict"></section>
+    <section class="card"><h3>DNS servers</h3><div id="dnsTable"></div>
+      <div class="foot">Each server is asked for a well-known name every 15 seconds. Statistics cover the last ${windowLabel()}.</div></section>
+    <section class="card"><h3>This PC's connection</h3><div id="linkBody"></div></section>
+    <section class="card" id="wifiCard" hidden><h3>Wi-Fi signal</h3><div id="wifiInfo"></div>
+      <div class="chart" data-ttl="wifi">${CHART_SHELL}</div></section>`);
+  const servers = extras.dns.servers, sys = servers.filter(s => s.system);
+  const failing = sys.filter(s => s.sent >= 3 && lossOf(s) >= 0.2);
+  const ref = servers.filter(s => !s.system && responding(s)).map(s => s.avg).sort((a, b) => a - b)[0];
+  const mine = sys.find(responding);
+  let v;
+  if (!sys.length) v = ['warning', 'No DNS server found', 'This PC has no DNS server configured on its active connection.'];
+  else if (!sys.some(s => s.sent >= 2)) v = ['idle', 'Collecting data…', 'The first lookups are being timed.'];
+  else if (failing.length) v = ['critical', `DNS server ${failing[0].ip} is failing ${fmtPct(lossOf(failing[0]))} of lookups`, 'Names will resolve slowly or not at all, which makes everything feel slow even when the connection is fine.'];
+  else if (mine && mine.avg > 100) v = ['warning', `Your DNS server is slow: ${fmtMs(mine.avg)} ms per lookup`, ref != null ? `A public server answers in ${fmtMs(ref)} ms from here.` : ''];
+  else v = ['good', 'DNS is answering normally', mine ? `Your DNS server (${mine.ip}) answers in ${fmtMs(mine.avg)} ms on average.` : ''];
+  setHTML($('#dnsVerdict'), `<div class="vrow">${icon(v[0], v[0])}<div><b>${esc(v[1])}</b><span>${esc(v[2])}</span></div></div>`);
+
+  let rmax = 0;
+  servers.forEach(s => { if (s.max != null && s.max > rmax) rmax = s.max; });
+  const sc = niceScale(rmax);
+  setHTML($('#dnsTable'), '<div class="tablewrap"><table><thead><tr><th class="l">Server</th><th>Failed</th><th>Lookups</th><th>Last</th><th>Avg</th><th>Min</th><th>Max</th>' +
+    `<th class="rangeh"><div><span>0</span><span>min · avg · max</span><span>${sc.step < 1 ? sc.max.toFixed(1) : sc.max} ms</span></div></th></tr></thead><tbody>` +
+    servers.map(s => {
+      const got = responding(s), l = lossOf(s);
+      return `<tr><td class="l host">${esc(s.ip)}${s.label ? `<small>${esc(s.label)} public DNS</small>` : ''}${s.system ? '<span class="tag">used by this PC</span>' : ''}</td>` +
+        `<td>${s.sent ? `${fmtPct(l)}<span class="meter"><i style="width:${(l * 100).toFixed(1)}%"></i></span>` : '–'}</td><td>${s.sent}</td>` +
+        `<td>${got ? (s.last == null ? '<span class="dim">failed</span>' : fmtMs(s.last)) : '–'}</td><td>${got ? fmtMs(s.avg) : '–'}</td><td>${got ? fmtMs(s.min) : '–'}</td><td>${got ? fmtMs(s.max) : '–'}</td>` +
+        `<td>${got ? rangeCell(s, sc) : '<div class="range"></div>'}</td></tr>`;
+    }).join('') + '</tbody></table></div>');
+
+  const link = extras.link;
+  const kv = (k, val) => `<dt>${k}</dt><dd>${val}</dd>`;
+  setHTML($('#linkBody'), '<dl class="kv">' +
+    (link.adapters.length ? link.adapters.map(a =>
+      kv('Connection', `${esc(a.name)} <span class="dim">${esc(a.type)} · ${esc(a.desc)}</span>`) +
+      kv('Link speed', a.speed == null ? '–' : a.speed >= 1000 ? (a.speed / 1000) + ' Gbps' : Math.round(a.speed) + ' Mbps') +
+      kv('This PC\'s address', esc(a.ip || '–')) +
+      kv('Router (gateway)', esc(a.gateway || '–')) +
+      kv('DNS servers', esc(a.dns.join(', ') || '–'))).join('')
+      : kv('Connection', 'No active connection with a gateway was found')) +
+    kv('Public address', link.publicIp ? `${esc(link.publicIp)}${link.loc ? ` <span class="dim">${esc(link.loc)}</span>` : ''}` : '<span class="dim">not known yet</span>') +
+    '</dl>');
+
+  const wifi = link.wifi;
+  $('#wifiCard').hidden = !wifi;
+  if (wifi) {
+    setHTML($('#wifiInfo'), '<dl class="kv">' + kv('Network', esc(wifi.ssid || '–')) +
+      kv('Signal now', wifi.connected ? wifi.signal + '%' : 'not connected') +
+      kv(`Over the last ${windowLabel()}`, wifi.avg == null ? '–' : `${Math.round(wifi.avg)}% average, ${Math.round(wifi.min)}% lowest`) +
+      kv('Link rate', wifi.connected ? `${fmtMbps(wifi.rx)} Mbps down · ${fmtMbps(wifi.tx)} Mbps up` : '–') + '</dl>');
+    const el = box.querySelector('.chart[data-ttl="wifi"]');
+    setHTML(el.querySelector('.chead'), '<div class="ctitle">Signal quality (%)</div>');
+    const W = Math.max(280, Math.floor(el.clientWidth));
+    const c = chartSVG(wifi.series, extras, W, { loss: false, max: 100, fmt: x => Math.round(x) + '%' });
+    el.querySelector('.svgwrap').innerHTML = c.svg;
+    el.querySelector('svg').setAttribute('aria-label', `Wi-Fi signal quality over the last ${windowLabel()}`);
+    charts.wifi = Object.assign(c.geo, { el, s: wifi.series, from: extras.from, step: extras.step, kind: 'wifi' });
+  }
+}
+
+function renderEvents(box) {
+  skeleton(box, 'events', `
+    <div class="phead"><div><h1>Events</h1><div class="sub">Every outage, spell of packet loss and spell of high latency, newest first.</div></div></div>
+    <section class="card"><div id="eventsBody"></div>
+      <div class="foot">Events of the last 30 days are kept here${state.log ? ' and saved in ' + esc(state.log.dir) + ' (events_YYYY-MM.csv)' : ''}. The limits are set under Alerts.</div></section>`);
+  setHTML($('#eventsBody'), eventsTable(extras.events, true));
+}
+
+function renderAlerts(box) {
+  const s = settings();
+  const built = skeleton(box, 'alerts', `
+    <div class="phead"><div><h1>Alerts</h1><div class="sub">When PingSight records an event and tells you about it.</div></div></div>
+    <section class="card"><form class="form" id="alertForm">
+      <label><input type="checkbox" id="aNotify"> Show a Windows notification when an event starts or ends</label>
+      <label>Outage: no reply for <input type="number" id="aOutage" min="2" max="600" step="1"> seconds</label>
+      <label>Packet loss: <input type="number" id="aLoss" min="1" max="100" step="1"> % or more over the last minute</label>
+      <label>High latency: <input type="number" id="aLatency" min="5" max="10000" step="5"> ms or more on average (ping and port checks)</label>
+      <label>Slow web check: <input type="number" id="aHttp" min="50" max="60000" step="50"> ms or more on average</label>
+      <div class="formrow"><button type="submit" class="primary">Save</button><span class="note" id="alertSaved" role="status"></span></div>
+    </form>
+    <div class="foot">An event ends once loss falls to half the limit, or latency to 80% of it. The same host raises the same kind of notification at most once every 5 minutes. Notifications appear only while PingSight is running.</div></section>`);
+  if (built) {
+    $('#aNotify').checked = !!s.notify;
+    $('#aOutage').value = s.outageSec; $('#aLoss').value = s.lossPct;
+    $('#aLatency').value = s.latencyMs; $('#aHttp').value = s.httpMs;
+  }
+}
+
+function renderPage() {
+  const box = $('#page');
+  if (state.v !== 2) {
+    pageKey = '';
+    setHTML(box, `<section class="card"><div class="vrow">${icon('warning', 'Warning')}<div><b>PingSight needs a restart</b><span>This page needs the newer engine. Close the PingSight window and start it again.</span></div></div></section>`);
+    return;
+  }
+  if (!extras) { pageKey = ''; setHTML(box, '<div class="waiting">Loading…</div>'); return; }
+  if (view === 'speed') renderSpeed(box);
+  else if (view === 'net') renderNet(box);
+  else if (view === 'events') renderEvents(box);
+  else renderAlerts(box);
+}
+
 function render() {
   if (!state) return;
+  charts = {};
+  if (!PAGES[view]) view = 'target';
   renderConn();
   renderWindows();
   renderTargets();
+  renderNav();
+  const onPage = view !== 'target';
   const t = state.targets.find(x => x.host === selHost);
-  $('#empty').hidden = !!state.targets.length;
-  $('#view').hidden = !t;
+  $('#page').hidden = !onPage;
+  $('#empty').hidden = onPage || !!state.targets.length;
+  $('#view').hidden = onPage || !t;
+  if (onPage) { renderPage(); drawHover(); return; }
   if (!t) return;
   const d = state.detail && state.detail.id === t.id ? state.detail : null;
   renderHead(t, d ? d.hops.length : 0);
@@ -703,11 +1057,14 @@ function render() {
   lastAnswering = 0;
   d.hops.forEach(h => { if (h.ip) lastAnswering = h.ttl; });
   const flags = hopFlags(t, d.hops);
-  const [lvl, title, text] = verdict(t, d.hops, flags);
+  const [lvl, title, text] = verdict(t, d, flags);
   setHTML($('#verdict'), `${icon(lvl, lvl)}<div><b>${esc(title)}</b><span>${esc(text)}</span></div>`);
-  renderTiles(t, t.destTtl ? d.hops[d.hops.length - 1] : null);
+  renderTiles(d.service || (t.destTtl ? d.hops[d.hops.length - 1] : null), d.service ? d.service.label : '');
   renderCharts(t, d);
   renderTable(t, d, flags);
+  $('#tevents').hidden = !d.events;
+  if (d.events) setHTML($('#teventsBody'), eventsTable(d.events, false));
+  drawHover();
 }
 
 // ---------- events ----------
@@ -715,14 +1072,18 @@ $('#windows').addEventListener('click', e => {
   const b = e.target.closest('button[data-win]');
   if (!b) return;
   windowSec = +b.dataset.win; store.set('win', windowSec); hover = null;
+  if (view === 'net') pageKey = '';
   renderWindows(); poll();
 });
 
-const targetsEl = $('#targets');
-targetsEl.addEventListener('click', e => { const li = e.target.closest('li'); if (li) select(li.dataset.host); });
-targetsEl.addEventListener('keydown', e => {
-  if ((e.key === 'Enter' || e.key === ' ') && e.target.tagName === 'LI') { e.preventDefault(); select(e.target.dataset.host); }
-});
+function listNav(el, attr, go) {
+  el.addEventListener('click', e => { const li = e.target.closest('li'); if (li) go(li.dataset[attr]); });
+  el.addEventListener('keydown', e => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.tagName === 'LI') { e.preventDefault(); go(e.target.dataset[attr]); }
+  });
+}
+listNav($('#targets'), 'host', select);
+listNav($('#nav'), 'view', showPage);
 
 // Accepts one host or a whole list (spaces, commas, semicolons or new lines between them).
 let adding = false;
@@ -738,7 +1099,7 @@ async function addTargets(text, fromBox) {
     if (!r.ok) { failed.push(h); errors.push(`${h}: ${r.error || 'could not be added'}`); continue; }
     if (!firstOk) firstOk = r.host;
     if (state && !state.targets.some(t => t.host === r.host)) {
-      state.targets.push({ id: r.id, host: r.host, ip: '', error: '', interval, paused: false, destTtl: 0, rounds: 0, sent: 0, lost: 0 });
+      state.targets.push({ id: r.id, host: r.host, ip: '', error: '', interval, paused: false, destTtl: 0, rounds: 0, sent: 0, lost: 0, svc: '', kind: '', event: '' });
     }
   }
   adding = false;
@@ -780,20 +1141,43 @@ function togglePin(ttl) {
   render(); poll();
 }
 $('#route').addEventListener('click', e => { const b = e.target.closest('button[data-pin]'); if (b) togglePin(+b.dataset.pin); });
+$('#charts').addEventListener('click', e => { const b = e.target.closest('button[data-unpin]'); if (b) togglePin(+b.dataset.unpin); });
 
-const chartsEl = $('#charts');
-chartsEl.addEventListener('click', e => { const b = e.target.closest('button[data-unpin]'); if (b) togglePin(+b.dataset.unpin); });
-chartsEl.addEventListener('mousemove', e => {
+const pageEl = $('#page');
+pageEl.addEventListener('click', async e => {
+  if (e.target.closest('#speedRun')) {
+    await post('/api/speed/run');
+    poll();
+  }
+});
+pageEl.addEventListener('change', async e => {
+  if (e.target.id !== 'speedEvery') return;
+  await post(`/api/settings?speedEveryMin=${e.target.value}`);
+  e.target.blur(); poll();
+});
+pageEl.addEventListener('submit', async e => {
+  if (e.target.id !== 'alertForm') return;
+  e.preventDefault();
+  const r = await post(`/api/settings?notify=${$('#aNotify').checked ? 1 : 0}&outageSec=${+$('#aOutage').value}&lossPct=${+$('#aLoss').value}&latencyMs=${+$('#aLatency').value}&httpMs=${+$('#aHttp').value}`);
+  $('#alertSaved').textContent = r.ok ? 'Saved' : (r.error || 'Could not save');
+  setTimeout(() => { const el = $('#alertSaved'); if (el) el.textContent = ''; }, 2500);
+  pageKey = ''; poll();
+});
+
+function hoverMove(e) {
   const plot = e.target.closest('.plot');
   const el = plot && plot.closest('.chart');
   const m = el && charts[el.dataset.ttl];
   if (!m) { if (hover) { hover = null; drawHover(); } return; }
   const x = e.clientX - plot.getBoundingClientRect().left;
   const i = Math.floor((x - m.L) / m.bw);
-  hover = i < 0 || i >= m.n ? null : { ttl: +el.dataset.ttl, t: m.from + i * m.step };
+  hover = i < 0 || i >= m.n ? null : { key: el.dataset.ttl, t: m.from + i * m.step };
   drawHover();
-});
-chartsEl.addEventListener('mouseleave', () => { hover = null; drawHover(); });
+}
+for (const el of [$('#charts'), pageEl]) {
+  el.addEventListener('mousemove', hoverMove);
+  el.addEventListener('mouseleave', () => { hover = null; drawHover(); });
+}
 
 let resizeTimer = 0;
 window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { render(); poll(); }, 120); });
