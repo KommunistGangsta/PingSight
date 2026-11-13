@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PingSight</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23d81e1e'/%3E%3Cpolygon fill='%23f5c518' points='12,3 14.12,9.09 20.56,9.22 15.42,13.11 17.29,19.28 12,15.6 6.71,19.28 8.58,13.11 3.44,9.22 9.88,9.09'/%3E%3C/svg%3E">
+<style>
+/* KommunistGangsta theme: constructivist poster (red / black / paper) with street gold. */
+:root {
+  color-scheme: dark;
+  --page: #0a0908; --surface: #161412; --ink: #f3ead7; --ink2: #c2b8a3; --muted: #8c8372;
+  --grid: #2b2723; --axis: #4a433b; --line: #f3ead7; --wash: rgba(243,234,215,.07);
+  --red: #d81e1e; --gold: #f5c518; --on-gold: #0a0908; --on-red: #fff6e6;
+  --series: #f5c518; --shadow: #f5c518; --focus: #f5c518; --ray: rgba(216,30,30,.09);
+  --good: #0ca30c; --warning: #fab219; --critical: #d03b3b;
+  --display: "Bahnschrift", "Arial Narrow", "Roboto Condensed", Impact, sans-serif;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --page: #e9dcc0; --surface: #f6edd8; --ink: #14100c; --ink2: #4d4538; --muted: #76694f;
+    --grid: #d9cbac; --axis: #b3a484; --line: #14100c; --wash: rgba(20,16,12,.07);
+    --red: #c4161c; --gold: #e8b500;
+    --series: #14100c; --shadow: #14100c; --focus: #c4161c; --ray: rgba(196,22,28,.07);
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--page); color: var(--ink); font: 14px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; }
+body::before {   /* poster rays from the top-left corner */
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: repeating-conic-gradient(from 90deg at 0 0, var(--ray) 0 5deg, transparent 5deg 10deg);
+  -webkit-mask-image: radial-gradient(circle at 0 0, #000 0, transparent 78%);
+  mask-image: radial-gradient(circle at 0 0, #000 0, transparent 78%);
+}
+h1, h2, h3 { margin: 0; font-weight: 700; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button {
+  font: 700 13px/1.2 var(--display); font-stretch: 85%; letter-spacing: .06em; text-transform: uppercase;
+  background: var(--surface); color: var(--ink); border: 2px solid var(--line); border-radius: 0;
+  padding: 6px 12px; cursor: pointer; white-space: nowrap;
+  box-shadow: 3px 3px 0 var(--line); transition: transform .06s, box-shadow .06s;
+}
+button:hover { background: var(--gold); color: var(--on-gold); }
+button:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--line); }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, li:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+button.primary { background: var(--red); color: var(--on-red); }
+button.primary:hover { background: var(--gold); color: var(--on-gold); }
+input, select, textarea { background: var(--page); border: 2px solid var(--line); border-radius: 0; padding: 5px 8px; min-width: 0; }
+textarea { resize: vertical; min-height: 36px; max-height: 240px; display: block; width: 100%; }
+
+/* ---------- header ---------- */
+.top {
+  /* the header is always "night": black band, red block, gold tape */
+  --surface: #161412; --ink: #f3ead7; --ink2: #c2b8a3; --line: #f3ead7; --gold: #f5c518; --red: #d81e1e;
+  --wash: rgba(243,234,215,.07); --focus: #f5c518;
+  position: relative; display: flex; align-items: stretch; gap: 16px; flex-wrap: wrap;
+  background: #0a0908; color: var(--ink); padding: 0 20px 0 0; margin-bottom: 8px;
+}
+.top::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -8px; height: 8px;
+  background: repeating-linear-gradient(-45deg, var(--gold) 0 12px, #0a0908 12px 24px);
+}
+.brand {
+  display: flex; align-items: center; gap: 10px; background: var(--red); color: var(--on-red);
+  padding: 12px 38px 12px 20px; clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, 0 100%);
+  font: 700 25px/1 var(--display); font-stretch: 78%; letter-spacing: .09em; text-transform: uppercase;
+}
+.brand svg { width: 30px; height: 30px; flex: none; }
+.stamp {
+  align-self: center; border: 2px solid var(--gold); color: var(--gold); padding: 3px 9px 2px;
+  font: 700 12px/1.2 var(--display); letter-spacing: .2em; text-transform: uppercase; white-space: nowrap;
+  transform: rotate(-3deg);
+}
+.range-pick { display: flex; align-items: center; gap: 8px; margin-left: auto; align-self: center; color: var(--ink2); }
+#rangeLabel { font: 700 12px var(--display); letter-spacing: .1em; text-transform: uppercase; }
+.seg { display: inline-flex; border: 2px solid var(--line); }
+.seg button { border: 0; box-shadow: none; background: transparent; padding: 5px 10px; color: var(--ink2); }
+.seg button + button { border-left: 2px solid var(--line); }
+.seg button:hover { background: var(--wash); color: var(--ink); }
+.seg button:active { transform: none; }
+.seg button[aria-pressed="true"] { background: var(--gold); color: #0a0908; }
+.conn {
+  display: flex; align-items: center; gap: 6px; align-self: center; min-width: 92px; color: var(--ink2);
+  font: 700 12px var(--display); letter-spacing: .1em; text-transform: uppercase;
+}
+@media (max-width: 640px) {
+  .top { padding-right: 12px; gap: 10px; }
+  .brand { font-size: 20px; padding: 10px 30px 10px 14px; }
+  .stamp { font-size: 10px; letter-spacing: .12em; }
+  .range-pick { margin-left: 0; width: 100%; order: 3; padding: 0 0 10px 12px; }
+  #rangeLabel { display: none; }
+  .seg { width: 100%; }
+  .seg button { flex: 1; padding: 5px 4px; }
+  .conn { margin-left: auto; min-width: 0; }
+}
+
+/* ---------- layout and cards ---------- */
+.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; padding: 28px 26px 30px 20px; max-width: 1500px; margin: 0 auto; }
+@media (max-width: 880px) { .layout { grid-template-columns: minmax(0, 1fr); padding: 24px 22px 26px 16px; } }
+.card { background: var(--surface); border: 2px solid var(--line); padding: 16px; box-shadow: 6px 6px 0 var(--shadow); }
+aside.card { align-self: start; }
+aside h2, .card h3 {   /* label tab bolted to the card's corner */
+  display: table; font: 700 13px/1 var(--display); letter-spacing: .13em; text-transform: uppercase;
+  background: var(--line); color: var(--surface); padding: 6px 20px 5px 12px; margin: -16px 0 14px -16px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+
+#targets { list-style: none; margin: 0 0 14px; padding: 0; }
+#targets li { display: flex; align-items: center; gap: 9px; padding: 9px 8px; cursor: pointer; border-bottom: 1px solid var(--grid); }
+#targets li:hover { background: var(--wash); }
+#targets li[aria-current="true"] { background: var(--wash); box-shadow: inset 5px 0 0 var(--red); padding-left: 12px; }
+#targets .who { flex: 1; min-width: 0; }
+#targets .host { font: 700 15px/1.25 var(--display); letter-spacing: .03em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#targets .st { color: var(--ink2); font-size: 12px; }
+#targets .nums { text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--ink2); white-space: nowrap; }
+#targets .nums b { color: var(--ink); font-weight: 600; display: block; }
+#addForm { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+#addForm button { align-self: start; }
+#addForm .hint { grid-column: 1 / -1; color: var(--muted); font-size: 12px; margin-top: -2px; }
+#addForm .row2 { grid-column: 1 / -1; display: flex; gap: 6px; align-items: center; color: var(--ink2); font-size: 12.5px; }
+#addErr { grid-column: 1 / -1; color: var(--critical); font-size: 12.5px; white-space: pre-line; overflow-wrap: anywhere; }
+#addErr:empty { display: none; }
+#suggest { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+#suggest button { font-size: 11.5px; padding: 4px 8px; box-shadow: 2px 2px 0 var(--line); }
+#suggest button:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--line); }
+#logNote { margin-top: 16px; padding-top: 12px; border-top: 2px solid var(--grid); color: var(--ink2); font-size: 12.5px; overflow-wrap: anywhere; }
+#logNote:empty { display: none; }
+#logNote b { font-weight: 600; color: var(--ink); }
+#logNote .warn { display: flex; gap: 6px; margin-top: 6px; }
+
+.ic { width: 16px; height: 16px; flex: none; }
+.ic .bg { stroke: none; }
+.ic.good .bg { fill: var(--good); } .ic.warning .bg { fill: var(--warning); }
+.ic.critical .bg { fill: var(--critical); } .ic.idle .bg { fill: var(--muted); }
+.ic .fg { fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ic.warning .fg { stroke: #0b0b0b; }
+
+#main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; min-width: 0; align-content: start; }
+#view { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; min-width: 0; }
+#charts { overflow: hidden; }
+#view[hidden], #empty[hidden] { display: none; }
+#empty { text-align: center; padding: 56px 20px; color: var(--ink2); }
+#empty h1 { font: 700 26px/1.2 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); margin-bottom: 8px; }
+
+#head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+#head h1 { font: 700 32px/1.05 var(--display); font-stretch: 80%; letter-spacing: .03em; overflow-wrap: anywhere; }
+#head .sub { color: var(--ink2); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+#head .sub select { padding: 1px 6px; }
+#head .actions { display: flex; gap: 10px; flex-wrap: wrap; padding: 0 3px 3px 0; }
+
+#verdict { display: flex; gap: 12px; align-items: flex-start; }
+#verdict .ic { width: 26px; height: 26px; margin-top: 1px; }
+#verdict b { display: block; font: 700 19px/1.2 var(--display); letter-spacing: .05em; text-transform: uppercase; margin-bottom: 2px; }
+#verdict span { color: var(--ink2); }
+
+#tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 700px) { #tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tile { padding: 12px 14px; box-shadow: 4px 4px 0 var(--shadow); }
+.tile .label { color: var(--ink2); font: 700 12px/1.3 var(--display); letter-spacing: .12em; text-transform: uppercase; }
+.tile .value { font: 700 36px/1.15 var(--display); font-stretch: 80%; letter-spacing: .01em; }
+.tile .value small { font: 600 15px var(--display); color: var(--ink2); letter-spacing: .06em; text-transform: uppercase; }
+.tile .note { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+.legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--ink2); font-size: 12.5px; margin: 0 0 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; }
+.k-line { width: 16px; height: 2px; background: var(--series); }
+.k-band { width: 16px; height: 10px; background: var(--series); opacity: .2; }
+.k-loss { width: 4px; height: 12px; background: var(--critical); }
+
+.chart + .chart { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--grid); }
+.chead { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; padding-right: 3px; }
+.ctitle { font: 700 15px/1.3 var(--display); letter-spacing: .04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctitle small { font: 400 12.5px "Segoe UI", system-ui, sans-serif; letter-spacing: 0; color: var(--ink2); }
+.chead button { margin-left: auto; padding: 2px 8px; font-size: 11.5px; box-shadow: 2px 2px 0 var(--line); }
+.chead button:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--line); }
+.plot { position: relative; }
+.plot svg { display: block; }
+svg .grid { stroke: var(--grid); stroke-width: 1; }
+svg .axis { stroke: var(--axis); stroke-width: 1; }
+svg .tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+svg .band { fill: var(--series); opacity: .16; }
+svg .bandline { stroke: var(--series); opacity: .35; stroke-width: 2; stroke-linecap: round; }
+svg .line { fill: none; stroke: var(--series); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+svg .pt { fill: var(--series); }
+svg .end, svg .hdot { fill: var(--series); stroke: var(--surface); stroke-width: 2; }
+svg .endlabel { fill: var(--ink); font: 700 13px var(--display); letter-spacing: .03em; }
+svg .lossbg { fill: var(--wash); }
+svg .loss { fill: var(--critical); }
+svg .cross { stroke: var(--muted); stroke-width: 1; }
+.tip {
+  position: absolute; top: 6px; z-index: 2; pointer-events: none; min-width: 170px;
+  background: var(--surface); border: 2px solid var(--line); padding: 8px 10px;
+  box-shadow: 4px 4px 0 var(--shadow); font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+.tip b { display: block; margin-bottom: 2px; font: 700 13px var(--display); letter-spacing: .05em; }
+.tip div { color: var(--ink2); }
+.tip div em { font-style: normal; color: var(--ink); font-weight: 600; }
+.waiting { color: var(--muted); padding: 24px 0; }
+
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th {
+  text-align: right; color: var(--ink2); padding: 6px 8px; border-bottom: 2px solid var(--line); white-space: nowrap;
+  font: 700 12px/1.3 var(--display); letter-spacing: .1em; text-transform: uppercase;
+}
+td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+tbody tr:hover td { background: var(--wash); }
+tr:last-child td { border-bottom: 0; }
+th.l, td.l { text-align: left; }
+td:first-child { font: 700 15px var(--display); }
+td.host { white-space: normal; min-width: 150px; max-width: 340px; overflow-wrap: anywhere; }
+td.host small { color: var(--muted); display: block; font-size: 12px; }
+td.dim, td .dim { color: var(--muted); }
+.tag {
+  display: inline-block; border: 1.5px solid var(--ink2); color: var(--ink2); padding: 1px 6px 0; margin-left: 6px; white-space: nowrap;
+  font: 700 10.5px/1.5 var(--display); letter-spacing: .1em; text-transform: uppercase; vertical-align: 1px;
+}
+.meter { display: inline-block; width: 34px; height: 5px; background: var(--wash); margin-left: 8px; vertical-align: middle; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--critical); }
+.meter.quiet i { background: var(--muted); }
+th.rangeh { min-width: 160px; }
+.rangeh div { display: flex; justify-content: space-between; }
+.range { position: relative; height: 16px; margin: 0 6px; min-width: 136px; }
+.range::before { content: ""; position: absolute; left: -6px; right: -6px; top: 7.5px; height: 1px; background: var(--axis); }
+.range .bar { position: absolute; top: 5px; height: 6px; min-width: 2px; background: var(--series); opacity: .35; }
+.range .dot { position: absolute; top: 3px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--series); box-shadow: 0 0 0 2px var(--surface); }
+td.pin { padding-right: 12px; }
+td.pin button { padding: 2px 8px; font-size: 11.5px; box-shadow: 2px 2px 0 var(--line); }
+td.pin button:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--line); }
+td.pin button[aria-pressed="true"] { background: var(--gold); color: var(--on-gold); }
+.foot { color: var(--muted); font-size: 12px; margin-top: 10px; }
+.stale { opacity: .5; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="12" fill="#0a0908"/>
+      <polygon fill="#f5c518" points="12,3 14.12,9.09 20.56,9.22 15.42,13.11 17.29,19.28 12,15.6 6.71,19.28 8.58,13.11 3.44,9.22 9.88,9.09"/>
+    </svg>
+    PingSight
+  </div>
+  <div class="stamp" aria-label="KommunistGangsta edition">&#9733; KommunistGangsta &#9733;</div>
+  <div class="range-pick">
+    <span id="rangeLabel">Show the last</span>
+    <div class="seg" id="windows" role="group" aria-labelledby="rangeLabel"></div>
+  </div>
+  <div class="conn" id="conn" role="status"></div>
+</header>
+
+<div class="layout">
+  <aside class="card">
+    <h2>Targets</h2>
+    <ul id="targets"></ul>
+    <form id="addForm" autocomplete="off">
+      <textarea id="host" rows="2" placeholder="Hosts or IPs, one or several" aria-label="Host names or IP addresses, separated by spaces, commas or new lines" spellcheck="false"></textarea>
+      <button class="primary" type="submit">Add</button>
+      <div class="hint">Separate several with spaces, commas or new lines.</div>
+      <label class="row2">Probe every <select id="addInt" aria-label="Probe interval"></select></label>
+      <div id="addErr" role="alert"></div>
+    </form>
+    <div id="suggest"></div>
+    <div id="logNote"></div>
+  </aside>
+
+  <main id="main">
+    <section id="empty" class="card" hidden>
+      <h1>Add a target to start</h1>
+      <p>Enter a host name or IP address on the left. PingSight then traces the route to it<br>and keeps measuring latency and packet loss at every hop.</p>
+    </section>
+
+    <div id="view" hidden>
+      <div id="head"></div>
+      <section id="verdict" class="card"></section>
+      <div id="tiles"></div>
+      <section class="card">
+        <h3>Latency (ms) and packet loss over time</h3>
+        <div class="legend" aria-hidden="true">
+          <span><i class="k-line"></i>average latency</span>
+          <span><i class="k-band"></i>fastest to slowest reply</span>
+          <span><i class="k-loss"></i>share of probes lost</span>
+        </div>
+        <div id="charts"></div>
+      </section>
+      <section class="card">
+        <h3>Route, hop by hop</h3>
+        <div class="tablewrap">
+          <table id="route">
+            <thead><tr>
+              <th>Hop</th><th class="l">Host</th><th>Loss</th><th>Sent</th><th>Last</th><th>Avg</th>
+              <th>Min</th><th>Max</th><th>Jitter</th>
+              <th class="rangeh"><div><span>0</span><span>min · avg · max</span><span id="rangeMax"></span></div></th>
+              <th>Graph</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="foot" id="foot"></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('pingsight.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('pingsight.' + k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } }
+};
+
+const WINDOWS = [[60, '1 min'], [300, '5 min'], [900, '15 min'], [3600, '1 h'], [21600, '6 h'], [86400, '24 h']];
+const INTERVALS = [[500, '0.5 s'], [1000, '1 s'], [2500, '2.5 s'], [5000, '5 s'], [10000, '10 s'], [30000, '30 s'], [60000, '1 min']];
+const SUGGEST = [['1.1.1.1', 'Cloudflare 1.1.1.1'], ['8.8.8.8', 'Google 8.8.8.8']];
+
+let state = null;
+let selHost = store.get('sel', '');
+let windowSec = store.get('win', 300);
+let pins = store.get('pins', {});
+let hover = null;            // { ttl, t }
+let charts = {};             // ttl -> geometry of the rendered chart
+let headKey = '';
+let busy = false, pending = false, refetched = false, fails = 0;
+
+// ---------- formatting ----------
+const fmtMs = v => v == null ? '–' : v < 100 ? v.toFixed(1) : String(Math.round(v));
+const lossOf = h => h.sent ? h.lost / h.sent : 0;
+function fmtPct(f) {
+  const p = f * 100;
+  return p === 0 ? '0%' : p < 10 ? p.toFixed(1) + '%' : Math.round(p) + '%';
+}
+const pad = n => String(n).padStart(2, '0');
+function fmtTime(ms, secs) {
+  const d = new Date(ms);
+  return pad(d.getHours()) + ':' + pad(d.getMinutes()) + (secs ? ':' + pad(d.getSeconds()) : '');
+}
+const windowLabel = () => (WINDOWS.find(w => w[0] === windowSec) || [0, windowSec + ' s'])[1];
+const hopLabel = h => h.name || h.ip || ('hop ' + h.ttl);
+const responding = h => h.sent > 0 && h.lost < h.sent;
+
+function icon(level, label) {
+  const fg = {
+    good: '<path class="fg" d="M4.6 8.3l2.3 2.3 4.5-4.9"/>',
+    warning: '<path class="fg" d="M8 5.2v4M8 11.6v.1"/>',
+    critical: '<path class="fg" d="M5.4 5.4l5.2 5.2M10.6 5.4l-5.2 5.2"/>',
+    idle: '<path class="fg" d="M5 8h6"/>'
+  }[level];
+  const bg = level === 'warning' ? '<path class="bg" d="M8 .9l7.4 13.4H.6z"/>' : '<circle class="bg" cx="8" cy="8" r="7.5"/>';
+  return `<svg class="ic ${level}" viewBox="0 0 16 16" role="img" aria-label="${esc(label || level)}">${bg}${fg}</svg>`;
+}
+
+// ---------- interpretation ----------
+function targetStatus(t) {
+  if (t.paused) return ['idle', 'Paused'];
+  if (t.error) return ['critical', 'Cannot resolve'];
+  if (!t.destTtl) return t.rounds < 4 ? ['idle', 'Tracing route'] : ['critical', 'No reply'];
+  if (t.sent < 3) return ['idle', 'Starting'];
+  const l = lossOf(t);
+  if (l >= 0.05) return ['critical', 'Losing packets'];
+  if (l >= 0.01) return ['warning', 'Some loss'];
+  if (t.avg > 150) return ['warning', 'Slow'];
+  return ['good', 'Healthy'];
+}
+
+// Marks hops whose loss is not real: routers that never answer ping, or that
+// answer it at low priority while traffic through them is fine.
+function hopFlags(t, hops) {
+  const n = hops.length, hasDest = t.destTtl > 0 && n === t.destTtl;
+  return hops.map((h, i) => {
+    if (hasDest && i === n - 1) return '';
+    if (h.sent >= 3 && h.lost === h.sent) return 'silent';
+    if (!hasDest || h.sent < 20 || h.lost < 2 || lossOf(h) < 0.03) return '';
+    for (let j = i + 1; j < n; j++) {
+      if (responding(hops[j]) && lossOf(hops[j]) < lossOf(h) - 0.03) return 'limited';
+    }
+    return '';
+  });
+}
+
+function verdict(t, hops, flags) {
+  if (t.error) return ['critical', 'The name could not be resolved', t.error + '. Check the spelling, or this PC\'s DNS settings.'];
+  const n = hops.length;
+  if (!t.destTtl) {
+    if (t.paused) return ['idle', 'Paused', 'Probing is paused. Press Resume to continue.'];
+    if (t.rounds < 4) return ['idle', 'Tracing the route…', 'Finding the hops between this PC and the target.'];
+    let ok = -1;
+    hops.forEach((h, i) => { if (responding(h)) ok = i; });
+    if (ok < 0) return ['critical', 'No replies at all', 'Not even the first hop answers. Check the cable or Wi-Fi and that this PC has a network connection.'];
+    return ['critical', 'The destination is not answering',
+      `The route answers as far as hop ${ok + 1} (${hopLabel(hops[ok])}). Either the target blocks ping, or the path breaks after that hop.`];
+  }
+  const dest = hops[n - 1];
+  if (!dest || dest.sent < 5) {
+    return t.paused ? ['idle', 'Paused', 'Probing is paused and there is no data in the selected range. Press Resume to continue.']
+                    : ['idle', 'Collecting data…', 'A few more probes are needed before the path can be judged.'];
+  }
+  const limited = hops.filter((h, i) => flags[i] === 'limited').map(h => h.ttl);
+  const note = limited.length
+    ? ` Hop${limited.length > 1 ? 's' : ''} ${limited.join(', ')} show${limited.length > 1 ? '' : 's'} loss that later hops do not: that is a router giving ping replies low priority, not real loss.`
+    : '';
+  const dl = lossOf(dest);
+  if (dl >= 0.01) {
+    const thr = Math.max(0.005, dl * 0.5);
+    let k = n - 1;
+    for (let i = n - 2; i >= 0; i--) {
+      const h = hops[i];
+      if (!responding(h) || h.sent < 5) continue;
+      if (lossOf(h) >= thr) k = i; else break;
+    }
+    const where = k === 0 ? 'the very first hop (your own router or local network)'
+      : k === n - 1 ? 'the destination itself or its last link'
+      : `hop ${k + 1} (${hopLabel(hops[k])})`;
+    return [dl >= 0.05 ? 'critical' : 'warning', `${fmtPct(dl)} packet loss to ${t.host}`,
+      `Loss first shows at ${where} and carries through to the destination, so the fault is most likely at or just before that point.` + note];
+  }
+  if (dest.avg > 150 || (dest.jitter || 0) > 30) {
+    // Delay that is still there at every later hop is real; a single slow hop is not.
+    let env = Infinity, best = -1, inc = 0;
+    const floor = new Array(n).fill(null);
+    for (let i = n - 1; i >= 0; i--) { if (responding(hops[i]) && hops[i].avg != null) { env = Math.min(env, hops[i].avg); floor[i] = env; } }
+    let prev = 0;
+    floor.forEach((v, i) => { if (v == null) return; if (v - prev > inc) { inc = v - prev; best = i; } prev = v; });
+    const title = dest.avg > 150 ? `High latency: ${fmtMs(dest.avg)} ms on average` : `Unstable latency: ${fmtMs(dest.jitter)} ms of jitter`;
+    const text = best >= 0 ? `Most of the delay is added at hop ${best + 1} (${hopLabel(hops[best])}), about +${fmtMs(inc)} ms.` : '';
+    return ['warning', title, text + note];
+  }
+  return ['good', 'The path looks healthy',
+    `${dl > 0 ? fmtPct(dl) + ' packet loss' : 'No packet loss'} and ${fmtMs(dest.avg)} ms average to ${t.host} over the last ${windowLabel()}.` + note];
+}
+
+// ---------- data ----------
+async function poll() {
+  if (busy) { pending = true; return; }
+  busy = true;
+  try {
+    const sel = state && state.targets.find(t => t.host === selHost);
+    const id = sel ? sel.id : 0;
+    const w = $('#charts').clientWidth || 800;
+    const points = Math.max(40, Math.min(600, Math.floor((w - 104) / 3)));
+    const plot = (pins[selHost] || []).concat(sel && !sel.destTtl && lastAnswering ? [lastAnswering] : []).join(',');
+    const r = await fetch(`/api/state?id=${id}&window=${windowSec}&points=${points}&plot=${plot}`, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    state = await r.json();
+    fails = 0;
+    if (!state.targets.some(t => t.host === selHost)) {
+      selHost = state.targets.length ? state.targets[0].host : '';
+      store.set('sel', selHost);
+    }
+    // The request was built before we knew this target's id: fetch its detail right away.
+    const now = state.targets.find(t => t.host === selHost);
+    if (now && (!state.detail || state.detail.id !== now.id) && !refetched) { refetched = true; pending = true; }
+    else refetched = false;
+    render();
+  } catch (e) {
+    fails++;
+    renderConn();
+  } finally {
+    busy = false;
+    if (pending) { pending = false; poll(); }
+  }
+}
+
+async function post(path) {
+  try {
+    const r = await fetch(path, { method: 'POST' });
+    return await r.json();
+  } catch (e) { return { ok: false, error: 'PingSight is not responding' }; }
+}
+
+function select(host) {
+  selHost = host; store.set('sel', host);
+  headKey = ''; hover = null; lastAnswering = 0;
+  render(); poll();
+}
+
+// ---------- rendering ----------
+let lastAnswering = 0;
+
+function setHTML(el, html) { if (el._h !== html) { el.innerHTML = html; el._h = html; } }
+
+function renderConn() {
+  const down = fails >= 2;
+  setHTML($('#conn'), down ? icon('critical', 'Disconnected') + 'Engine stopped' : icon('good', 'Connected') + 'Live');
+  $('#main').classList.toggle('stale', down);
+  if (down) $('#conn').title = 'The PingSight window was closed. Start it again to resume.';
+  else $('#conn').removeAttribute('title');
+}
+
+function renderWindows() {
+  setHTML($('#windows'), WINDOWS.map(([s, l]) => `<button type="button" data-win="${s}" aria-pressed="${s === windowSec}">${l}</button>`).join(''));
+}
+
+function renderTargets() {
+  const ul = $('#targets');
+  const ts = state.targets;
+  while (ul.children.length > ts.length) ul.lastElementChild.remove();
+  ts.forEach((t, i) => {
+    let li = ul.children[i];
+    if (!li) { li = document.createElement('li'); li.tabIndex = 0; ul.appendChild(li); }
+    li.dataset.host = t.host;
+    li.setAttribute('aria-current', t.host === selHost ? 'true' : 'false');
+    const [lvl, label] = targetStatus(t);
+    const nums = t.destTtl && t.sent
+      ? `<b>${t.last == null ? 'lost' : fmtMs(t.last) + ' ms'}</b>${fmtPct(lossOf(t))} loss` : '';
+    setHTML(li, `${icon(lvl, label)}<div class="who"><div class="host">${esc(t.host)}</div><div class="st">${esc(label)}</div></div><div class="nums">${nums}</div>`);
+  });
+  const have = new Set(ts.map(t => t.host));
+  const chips = state.gateways.map(g => [g, 'Your router ' + g]).concat(SUGGEST).filter(c => !have.has(c[0]));
+  setHTML($('#suggest'), chips.map(c => `<button type="button" data-add="${esc(c[0])}">+ ${esc(c[1])}</button>`).join(''));
+  const log = state.log;
+  const every = log && (log.every === 60 ? 'minute' : log.every % 60 === 0 ? (log.every / 60) + ' minutes' : log.every + ' seconds');
+  setHTML($('#logNote'), !log ? 'Results are not being saved to disk.'
+    : `Saving results to <b>${esc(log.dir)}</b><br>One file per host per day, one row per hop every ${every}.` +
+      (log.error ? `<div class="warn">${icon('warning', 'Warning')}<span>${esc(log.error)}</span></div>` : ''));
+}
+
+function renderHead(t, hopCount) {
+  const key = [t.id, t.host, t.ip, t.paused, t.interval, hopCount, t.destTtl > 0].join('|');
+  const head = $('#head');
+  if (key === headKey || head.contains(document.activeElement) && document.activeElement.tagName === 'SELECT') return;
+  headKey = key;
+  const opts = INTERVALS.slice();
+  if (!opts.some(o => o[0] === t.interval)) opts.push([t.interval, (t.interval / 1000) + ' s']);
+  const hopsTxt = t.destTtl ? `${hopCount} hop${hopCount === 1 ? '' : 's'} away` : 'route not complete';
+  head.innerHTML = `
+    <div>
+      <h1>${esc(t.host)}</h1>
+      <div class="sub">${t.ip && t.ip !== t.host ? esc(t.ip) + ' · ' : ''}${hopsTxt} · probing every
+        <select id="interval" aria-label="Probe interval">${opts.map(o => `<option value="${o[0]}"${o[0] === t.interval ? ' selected' : ''}>${o[1]}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="actions">
+      <button type="button" data-act="pause">${t.paused ? 'Resume' : 'Pause'}</button>
+      <button type="button" data-act="reset">Clear data</button>
+      <button type="button" data-act="export">Export CSV</button>
+      <button type="button" data-act="remove">Remove</button>
+    </div>`;
+}
+
+function renderTiles(t, dest) {
+  const has = dest && dest.sent > 0;
+  const tile = (label, value, unit, note) =>
+    `<div class="card tile"><div class="label">${label}</div><div class="value">${value}${unit ? ` <small>${unit}</small>` : ''}</div><div class="note">${note}</div></div>`;
+  const got = has && dest.lost < dest.sent;
+  setHTML($('#tiles'), [
+    tile('Latency now', !has ? '–' : dest.last == null ? 'Lost' : fmtMs(dest.last), has && dest.last != null ? 'ms' : '', 'latest probe'),
+    tile('Average latency', got ? fmtMs(dest.avg) : '–', got ? 'ms' : '', got ? `min ${fmtMs(dest.min)} · max ${fmtMs(dest.max)} ms` : 'no replies in range'),
+    tile('Jitter', got && dest.jitter != null ? fmtMs(dest.jitter) : '–', got && dest.jitter != null ? 'ms' : '', 'average change between probes'),
+    tile('Packet loss', has ? fmtPct(lossOf(dest)) : '–', '', has ? `${dest.lost} of ${dest.sent} probes lost` : 'no probes in range')
+  ].join(''));
+}
+
+function niceScale(max) {
+  if (!(max > 0)) max = 1;
+  const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p;
+  const step = (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p;
+  return { step, max: Math.ceil(max / step - 1e-9) * step };
+}
+
+function runs(a) {
+  const out = []; let s = -1;
+  for (let i = 0; i <= a.length; i++) {
+    const ok = i < a.length && a[i] != null;
+    if (ok && s < 0) s = i;
+    if (!ok && s >= 0) { out.push([s, i - 1]); s = -1; }
+  }
+  return out;
+}
+
+const TSTEPS = [5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200, 86400].map(s => s * 1000);
+
+function chartSVG(s, d, W) {
+  const L = 46, R = 58, T = 10, PH = 150, GAP = 14, LH = 24, XH = 22;
+  const H = T + PH + GAP + LH + XH, PW = Math.max(60, W - L - R), n = d.n, bw = PW / n;
+  const X = i => L + (i + 0.5) * bw;
+  let ymax = 0;
+  for (const v of s.max) if (v != null && v > ymax) ymax = v;
+  const sc = niceScale(ymax);
+  const Y = v => T + PH - (v / sc.max) * PH;
+  const f = v => v.toFixed(1);
+  let g = '';
+
+  for (let k = 0; k * sc.step <= sc.max + 1e-9; k++) {
+    const v = k * sc.step, y = Math.round(Y(v)) + 0.5;
+    g += `<line class="${k ? 'grid' : 'axis'}" x1="${L}" x2="${L + PW}" y1="${y}" y2="${y}"/>`;
+    g += `<text class="tick" x="${L - 8}" y="${y + 4}" text-anchor="end">${sc.step < 1 ? v.toFixed(1) : v}</text>`;
+  }
+
+  const ly = T + PH + GAP, lb = ly + LH;
+  g += `<rect class="lossbg" x="${L}" y="${ly}" width="${PW}" height="${LH}"/>`;
+  g += `<text class="tick" x="${L - 8}" y="${ly + LH / 2 + 4}" text-anchor="end">loss</text>`;
+  const lw = Math.max(1.5, bw - (bw > 4 ? 2 : 0));
+  for (let i = 0; i < n; i++) {
+    if (!s.lost[i]) continue;
+    const h = Math.max(3, s.lost[i] / s.sent[i] * LH);
+    g += `<rect class="loss" x="${f(X(i) - lw / 2)}" y="${f(lb - h)}" width="${f(lw)}" height="${f(h)}"/>`;
+  }
+
+  const span = n * d.step, to = d.from + span;
+  const tstep = TSTEPS.find(x => span / x <= Math.max(2, Math.floor(PW / 90))) || 86400000;
+  const off = new Date(d.from).getTimezoneOffset() * 60000;
+  for (let t = Math.ceil((d.from - off) / tstep) * tstep + off; t < to; t += tstep) {
+    const x = L + (t - d.from) / span * PW;
+    if (x < L + 14 || x > L + PW - 14) continue;
+    g += `<text class="tick" x="${f(x)}" y="${lb + 16}" text-anchor="middle">${fmtTime(t, tstep < 60000)}</text>`;
+  }
+
+  let end = -1;
+  for (const [a, b] of runs(s.avg)) {
+    end = b;
+    if (a === b) {
+      g += `<line class="bandline" x1="${f(X(a))}" x2="${f(X(a))}" y1="${f(Y(s.max[a]))}" y2="${f(Y(s.min[a]))}"/>`;
+      g += `<circle class="pt" cx="${f(X(a))}" cy="${f(Y(s.avg[a]))}" r="1.5"/>`;
+      continue;
+    }
+    let up = '', down = '', line = '';
+    for (let i = a; i <= b; i++) {
+      up += `${i === a ? 'M' : 'L'}${f(X(i))} ${f(Y(s.max[i]))}`;
+      line += `${i === a ? 'M' : 'L'}${f(X(i))} ${f(Y(s.avg[i]))}`;
+    }
+    for (let i = b; i >= a; i--) down += `L${f(X(i))} ${f(Y(s.min[i]))}`;
+    g += `<path class="band" d="${up}${down}Z"/><path class="line" d="${line}"/>`;
+  }
+  if (end >= 0) {
+    g += `<circle class="end" cx="${f(X(end))}" cy="${f(Y(s.avg[end]))}" r="4"/>`;
+    if (end >= n - 3) g += `<text class="endlabel" x="${f(X(end) + 9)}" y="${f(Y(s.avg[end]) + 4)}">${fmtMs(s.avg[end])} ms</text>`;
+  }
+  g += `<line class="cross" y1="${T}" y2="${lb}" visibility="hidden"/><circle class="hdot" r="4" visibility="hidden"/>`;
+  return { svg: `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img">${g}</svg>`, geo: { L, PW, n, bw, X, Y, W } };
+}
+
+function renderCharts(t, d) {
+  const box = $('#charts');
+  const hops = d.hops;
+  const main = t.destTtl ? hops.length : lastAnswering;
+  let ttls = [];
+  if (main) ttls.push(main);
+  (pins[selHost] || []).slice().sort((a, b) => a - b).forEach(p => { if (!ttls.includes(p)) ttls.push(p); });
+  ttls = ttls.filter(x => hops[x - 1] && hops[x - 1].series);
+
+  charts = {};
+  if (!ttls.length) {
+    box.innerHTML = '<div class="waiting">Waiting for the first replies…</div>';
+    return;
+  }
+  const W = Math.max(280, Math.floor(box.clientWidth));
+  [...box.children].forEach(el => { if (!el.dataset.ttl || !ttls.includes(+el.dataset.ttl)) el.remove(); });
+  ttls.forEach((ttl, idx) => {
+    const h = hops[ttl - 1];
+    let el = [...box.children].find(c => +c.dataset.ttl === ttl);
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'chart'; el.dataset.ttl = ttl;
+      el.innerHTML = '<div class="chead"><div class="ctitle"></div></div><div class="plot"><div class="svgwrap"></div><div class="tip" hidden></div></div>';
+    }
+    if (box.children[idx] !== el) box.insertBefore(el, box.children[idx] || null);
+    const isDest = t.destTtl === ttl;
+    const who = h.name ? `${esc(h.name)} <small>${esc(h.ip)}</small>` : esc(h.ip || 'no reply');
+    setHTML(el.querySelector('.chead'),
+      `<div class="ctitle">${isDest ? 'Destination' : 'Hop ' + ttl} · ${who}</div>` +
+      (isDest || ttl === main ? '' : `<button type="button" data-unpin="${ttl}">Hide</button>`));
+    const c = chartSVG(h.series, d, W);
+    el.querySelector('.svgwrap').innerHTML = c.svg;
+    el.querySelector('svg').setAttribute('aria-label',
+      `Latency and packet loss for ${isDest ? 'the destination' : 'hop ' + ttl} over the last ${windowLabel()}`);
+    charts[ttl] = Object.assign(c.geo, { el, s: h.series, from: d.from, step: d.step, interval: t.interval });
+  });
+  drawHover();
+}
+
+function tipHTML(m, i) {
+  const t0 = m.from + i * m.step, s = m.s;
+  const when = m.step >= 60000 ? `${fmtTime(t0)} – ${fmtTime(t0 + m.step)}`
+    : m.step > 1000 ? `${fmtTime(t0, true)} – ${fmtTime(t0 + m.step, true)}` : fmtTime(t0, true);
+  if (!s.sent[i]) return `<b>${when}</b><div>No probes sent</div>`;
+  const lat = s.avg[i] == null ? '<div>Latency <em>no reply</em></div>'
+    : s.sent[i] - s.lost[i] > 1
+      ? `<div>Latency <em>${fmtMs(s.avg[i])} ms</em> avg</div><div>${fmtMs(s.min[i])} min · ${fmtMs(s.max[i])} max</div>`
+      : `<div>Latency <em>${fmtMs(s.avg[i])} ms</em></div>`;
+  return `<b>${when}</b>${lat}<div>Lost <em>${s.lost[i]} of ${s.sent[i]}</em> (${fmtPct(s.lost[i] / s.sent[i])})</div>`;
+}
+
+function drawHover() {
+  for (const ttl of Object.keys(charts)) {
+    const m = charts[ttl];
+    const cross = m.el.querySelector('.cross'), dot = m.el.querySelector('.hdot'), tip = m.el.querySelector('.tip');
+    const i = hover ? Math.round((hover.t - m.from) / m.step) : -1;
+    if (i < 0 || i >= m.n) {
+      cross.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); tip.hidden = true;
+      continue;
+    }
+    const x = m.X(i);
+    cross.setAttribute('x1', x); cross.setAttribute('x2', x); cross.setAttribute('visibility', 'visible');
+    if (m.s.avg[i] != null) {
+      dot.setAttribute('cx', x); dot.setAttribute('cy', m.Y(m.s.avg[i])); dot.setAttribute('visibility', 'visible');
+    } else dot.setAttribute('visibility', 'hidden');
+    if (+ttl === hover.ttl) {
+      tip.innerHTML = tipHTML(m, i);
+      tip.hidden = false;
+      const tw = tip.offsetWidth;
+      tip.style.left = (x + 14 + tw > m.W ? Math.max(0, x - 14 - tw) : x + 14) + 'px';
+    } else tip.hidden = true;
+  }
+}
+
+function renderTable(t, d, flags) {
+  const hops = d.hops, tb = $('#route tbody');
+  let rmax = 0;
+  hops.forEach(h => { if (h.max != null && h.max > rmax) rmax = h.max; });
+  const sc = niceScale(rmax);
+  $('#rangeMax').textContent = (sc.step < 1 ? sc.max.toFixed(1) : sc.max) + ' ms';
+  const pinned = pins[selHost] || [];
+  while (tb.children.length > hops.length) tb.lastElementChild.remove();
+  hops.forEach((h, i) => {
+    let tr = tb.children[i];
+    if (!tr) { tr = document.createElement('tr'); tr.innerHTML = '<td></td>'.repeat(11); tb.appendChild(tr); }
+    const isDest = t.destTtl === h.ttl, flag = flags[i], got = responding(h);
+    const pct = v => (Math.min(v, sc.max) / sc.max * 100).toFixed(2);
+    let host;
+    if (!h.ip) host = '<span class="dim">No reply</span>' + (flag === 'silent' ? '<small>this router does not answer ping; that is normal</small>' : '');
+    else host = (h.name ? `${esc(h.name)}<small>${esc(h.ip)}</small>` : esc(h.ip)) +
+      (h.alt ? `<span class="tag" title="This hop has answered from ${h.alt + 1} different addresses">+${h.alt} more</span>` : '');
+    if (isDest) host += '<span class="tag">destination</span>';
+    if (flag === 'limited') host += '<span class="tag" title="Later hops lose less than this one, so this router is only slow to answer ping">ignores some pings</span>';
+    const l = lossOf(h), quiet = flag === 'silent' || flag === 'limited';
+    const cells = [
+      String(h.ttl),
+      host,
+      h.sent ? `<span${quiet ? ' class="dim"' : ''}>${fmtPct(l)}</span><span class="meter${quiet ? ' quiet' : ''}"><i style="width:${(l * 100).toFixed(1)}%"></i></span>` : '–',
+      String(h.sent),
+      got ? (h.last == null ? '<span class="dim">lost</span>' : fmtMs(h.last)) : '–',
+      got ? fmtMs(h.avg) : '–', got ? fmtMs(h.min) : '–', got ? fmtMs(h.max) : '–',
+      got && h.jitter != null ? fmtMs(h.jitter) : '–',
+      got ? `<div class="range" title="min ${fmtMs(h.min)} · avg ${fmtMs(h.avg)} · max ${fmtMs(h.max)} ms"><i class="bar" style="left:${pct(h.min)}%;width:${(pct(h.max) - pct(h.min)).toFixed(2)}%"></i><i class="dot" style="left:${pct(h.avg)}%"></i></div>` : '<div class="range"></div>',
+      isDest ? '<span class="dim">shown</span>'
+        : `<button type="button" data-pin="${h.ttl}" aria-pressed="${pinned.includes(h.ttl)}" title="Show this hop in the timeline above">${pinned.includes(h.ttl) ? 'Shown' : 'Show'}</button>`
+    ];
+    const cls = ['', 'l host', '', '', '', '', '', '', '', '', 'pin'];
+    cells.forEach((html, c) => { const td = tr.children[c]; td.className = cls[c]; setHTML(td, html); });
+  });
+  $('#foot').textContent = `ICMP echo, 32 bytes, one probe per hop every ${t.interval / 1000} s, ${state.timeout / 1000} s timeout. Statistics cover the last ${windowLabel()}.`;
+}
+
+function render() {
+  if (!state) return;
+  renderConn();
+  renderWindows();
+  renderTargets();
+  const t = state.targets.find(x => x.host === selHost);
+  $('#empty').hidden = !!state.targets.length;
+  $('#view').hidden = !t;
+  if (!t) return;
+  const d = state.detail && state.detail.id === t.id ? state.detail : null;
+  renderHead(t, d ? d.hops.length : 0);
+  if (!d) return;
+  lastAnswering = 0;
+  d.hops.forEach(h => { if (h.ip) lastAnswering = h.ttl; });
+  const flags = hopFlags(t, d.hops);
+  const [lvl, title, text] = verdict(t, d.hops, flags);
+  setHTML($('#verdict'), `${icon(lvl, lvl)}<div><b>${esc(title)}</b><span>${esc(text)}</span></div>`);
+  renderTiles(t, t.destTtl ? d.hops[d.hops.length - 1] : null);
+  renderCharts(t, d);
+  renderTable(t, d, flags);
+}
+
+// ---------- events ----------
+$('#windows').addEventListener('click', e => {
+  const b = e.target.closest('button[data-win]');
+  if (!b) return;
+  windowSec = +b.dataset.win; store.set('win', windowSec); hover = null;
+  renderWindows(); poll();
+});
+
+const targetsEl = $('#targets');
+targetsEl.addEventListener('click', e => { const li = e.target.closest('li'); if (li) select(li.dataset.host); });
+targetsEl.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.tagName === 'LI') { e.preventDefault(); select(e.target.dataset.host); }
+});
+
+// Accepts one host or a whole list (spaces, commas, semicolons or new lines between them).
+let adding = false;
+async function addTargets(text, fromBox) {
+  const hosts = [...new Set(text.split(/[\s,;]+/).filter(Boolean))];
+  if (!hosts.length || adding) return;
+  adding = true;
+  const interval = +$('#addInt').value;
+  const failed = [], errors = [];
+  let firstOk = '';
+  for (const h of hosts) {
+    const r = await post(`/api/add?host=${encodeURIComponent(h)}&interval=${interval}`);
+    if (!r.ok) { failed.push(h); errors.push(`${h}: ${r.error || 'could not be added'}`); continue; }
+    if (!firstOk) firstOk = r.host;
+    if (state && !state.targets.some(t => t.host === r.host)) {
+      state.targets.push({ id: r.id, host: r.host, ip: '', error: '', interval, paused: false, destTtl: 0, rounds: 0, sent: 0, lost: 0 });
+    }
+  }
+  adding = false;
+  $('#addErr').textContent = errors.join('\n');
+  if (fromBox) $('#host').value = failed.join('\n');   // keep only what still needs fixing
+  if (firstOk) select(firstOk); else if (state) render();
+}
+$('#addForm').addEventListener('submit', e => { e.preventDefault(); addTargets($('#host').value, true); });
+$('#host').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addTargets($('#host').value, true); }
+});
+$('#suggest').addEventListener('click', e => { const b = e.target.closest('button[data-add]'); if (b) addTargets(b.dataset.add, false); });
+
+$('#head').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-act]');
+  const t = state && state.targets.find(x => x.host === selHost);
+  if (!b || !t) return;
+  const act = b.dataset.act;
+  if (act === 'export') { location.href = `/api/export?id=${t.id}&window=${windowSec}`; return; }
+  if (act === 'remove' && !confirm(`Remove ${t.host} and its collected data?`)) return;
+  if (act === 'reset' && !confirm(`Clear all data collected for ${t.host}?`)) return;
+  if (act === 'pause') await post(`/api/pause?id=${t.id}&paused=${t.paused ? 0 : 1}`);
+  if (act === 'reset') await post(`/api/reset?id=${t.id}`);
+  if (act === 'remove') await post(`/api/remove?id=${t.id}`);
+  headKey = ''; poll();
+});
+$('#head').addEventListener('change', async e => {
+  const t = state && state.targets.find(x => x.host === selHost);
+  if (e.target.id !== 'interval' || !t) return;
+  await post(`/api/interval?id=${t.id}&ms=${e.target.value}`);
+  e.target.blur(); headKey = ''; poll();
+});
+
+function togglePin(ttl) {
+  const list = (pins[selHost] || []).slice();
+  const i = list.indexOf(ttl);
+  if (i >= 0) list.splice(i, 1); else if (list.length < 8) list.push(ttl);
+  pins[selHost] = list; store.set('pins', pins);
+  render(); poll();
+}
+$('#route').addEventListener('click', e => { const b = e.target.closest('button[data-pin]'); if (b) togglePin(+b.dataset.pin); });
+
+const chartsEl = $('#charts');
+chartsEl.addEventListener('click', e => { const b = e.target.closest('button[data-unpin]'); if (b) togglePin(+b.dataset.unpin); });
+chartsEl.addEventListener('mousemove', e => {
+  const plot = e.target.closest('.plot');
+  const el = plot && plot.closest('.chart');
+  const m = el && charts[el.dataset.ttl];
+  if (!m) { if (hover) { hover = null; drawHover(); } return; }
+  const x = e.clientX - plot.getBoundingClientRect().left;
+  const i = Math.floor((x - m.L) / m.bw);
+  hover = i < 0 || i >= m.n ? null : { ttl: +el.dataset.ttl, t: m.from + i * m.step };
+  drawHover();
+});
+chartsEl.addEventListener('mouseleave', () => { hover = null; drawHover(); });
+
+let resizeTimer = 0;
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { render(); poll(); }, 120); });
+
+$('#addInt').innerHTML = INTERVALS.map(o => `<option value="${o[0]}"${o[0] === 1000 ? ' selected' : ''}>${o[1]}</option>`).join('');
+renderWindows();
+poll();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>

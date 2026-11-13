@@ -1,0 +1,8 @@
+# Local host list (internal names and addresses) stays on the PC
+targets.txt
+
+# Editor / assistant settings
+.claude/
+
+# Leftovers from an interrupted update
+*.new
