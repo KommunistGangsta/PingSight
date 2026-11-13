@@ -311,7 +311,7 @@ const SUGGEST = [['1.1.1.1', 'Cloudflare 1.1.1.1'], ['8.8.8.8', 'Google 8.8.8.8'
 const SPEED_EVERY = [[0, 'never'], [30, 'every 30 min'], [60, 'every hour'], [180, 'every 3 hours'], [360, 'every 6 hours'], [720, 'every 12 hours'], [1440, 'once a day']];
 const PAGES = { speed: 'Speed test', net: 'DNS and local link', events: 'Events', alerts: 'Alerts' };
 const EVENT_NAMES = { outage: 'Outage', loss: 'Packet loss', latency: 'High latency' };
-const DEFAULTS = { outageSec: 5, lossPct: 5, latencyMs: 150, httpMs: 2000, notify: true, speedEveryMin: 0 };
+const DEFAULTS = { outageSec: 5, lossPct: 5, latencyMs: 150, httpMs: 2000, notify: false, speedEveryMin: 0 };
 
 let state = null;
 let extras = null;           // data for the pages under "Network checks"
@@ -1005,7 +1005,7 @@ function renderEvents(box) {
 function renderAlerts(box) {
   const s = settings();
   const built = skeleton(box, 'alerts', `
-    <div class="phead"><div><h1>Alerts</h1><div class="sub">When PingSight records an event and tells you about it.</div></div></div>
+    <div class="phead"><div><h1>Alerts</h1><div class="sub">When PingSight records an event. Windows notifications are off unless you switch them on here.</div></div></div>
     <section class="card"><form class="form" id="alertForm">
       <label><input type="checkbox" id="aNotify"> Show a Windows notification when an event starts or ends</label>
       <label>Outage: no reply for <input type="number" id="aOutage" min="2" max="600" step="1"> seconds</label>

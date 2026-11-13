@@ -71,8 +71,9 @@ For each host you get:
   two public servers for comparison.
 - **Local link.** Adapter, link speed, addresses, gateway, public address, and
   Wi-Fi signal over time when connected by Wi-Fi.
-- **Alerts.** A Windows notification when an outage, packet loss or high latency
-  starts and ends. The limits are adjustable in the dashboard.
+- **Alerts.** Adjustable limits for what counts as an outage, packet loss or
+  high latency. Optionally a Windows notification when one starts and ends;
+  this is off until you switch it on under Alerts.
 
 ### Results on disk
 
@@ -97,8 +98,8 @@ files, at one-minute detail.
 - The public address is read from Cloudflare (`cloudflare.com/cdn-cgi/trace`).
 - The dashboard listens on `localhost` only and cannot be reached from other
   machines.
-- Notifications appear only while PingSight is running; it does not install a
-  service or start with Windows.
+- PingSight does not install a service or start with Windows. Notifications,
+  when switched on, appear only while it is running.
 
 ## Files
 

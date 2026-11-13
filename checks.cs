@@ -22,7 +22,7 @@ namespace PingSight
         public static double LossPct = 5;         // loss over the last minute that counts as a problem
         public static double LatencyMs = 150;     // average ping / TCP latency over the last minute
         public static double HttpMs = 2000;       // average web response time over the last minute
-        public static bool Notify = true;         // Windows notifications
+        public static bool Notify = false;        // Windows notifications (off unless switched on under Alerts)
         public static int SpeedEveryMin = 0;      // scheduled speed test; 0 = off
         static string path;
 
